@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="gdal">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/gdal/swig/java/gdal.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

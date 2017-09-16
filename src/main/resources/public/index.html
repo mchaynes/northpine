@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <meta charset="UTF-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="text/javascript" src="js/scrape.js"></script>
+    <title>Soundview Scrape</title>
+</head>
+<body>
+    <h1>Enter url:</h1>
+    <form id="urlForm">
+        <input type="text" id="url">
+    </form>
+    <br>
+    <button id="submit" onclick="start()">Submit</button>
+    <br>
+    <h1 id="status" >Progress</h1>
+    <div id="greyBar">
+        <div id="progressBar"></div>
+    </div>
+    <br>
+    <button id="download" onclick="download()" disabled=true >Download</button>
+</body>
+</html>
