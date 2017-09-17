@@ -1,11 +1,13 @@
+import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.http.pool.
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -19,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -79,30 +82,59 @@ public class ScrapeJob {
     JSONObject idsJson = getJsonResponse( queryUrl );
     JSONArray arr = idsJson.getJSONArray( "objectIds" );
     RequestConfig config = RequestConfig.DEFAULT;
-    CloseableHttpAsyncClient httpclient = HttpAsyncClients.custom()
+    CloseableHttpAsyncClient httpClient = HttpAsyncClients.custom()
         .setDefaultRequestConfig(config)
         .build();
-
-    CompletableFuture future = buildIdStrs( arr ).stream()
+    httpClient.start();
+    List<String> idStrs = buildIdStrs( arr );
+    CountDownLatch latch = new CountDownLatch( idStrs.size() );
+    idStrs.stream()
         .map( idListStr -> "OBJECTID%20in%20(" + idListStr + ")" )
         .map( queryStr -> queryUrlStr + "?f=json&outFields=*&where=" + queryStr )
-        .map( this::getURL )
-        .map( url ->
-            CompletableFuture.supplyAsync( () -> getJsonResponse( url ), Executors.newCachedThreadPool())
-                .thenApplyAsync( this::writeJSON )
-                .thenAccept( this::addToShp )
-        )
-        .reduce( (x, y) -> CompletableFuture.allOf( x, y ))
-        .orElseThrow( RuntimeException::new );
+        .map( HttpGet::new )
+        .forEach( request ->
+            httpClient.execute(request, new FutureCallback<HttpResponse>() {
 
+              @Override
+              public void completed(final HttpResponse response) {
+                latch.countDown();
+                String body = "";
+                try(Scanner scanner = new Scanner(response.getEntity().getContent())) {
+                  StringBuilder sb = new StringBuilder();
+                  while(scanner.hasNext()) {
+                    sb.append( scanner.next() );
+                  }
+                  body = sb.toString();
+                } catch ( IOException e ) {
+                  e.printStackTrace();
+                }
+                String finalBody = body;
+                CompletableFuture.supplyAsync( () -> writeJSON( new JSONObject( finalBody ) ) )
+                  .thenAccept( str -> addToShp( str ) );
+              }
+
+              @Override
+              public void failed(final Exception ex) {
+                latch.countDown();
+                log.error(request.getRequestLine() + "->" + ex);
+              }
+
+              @Override
+              public void cancelled() {
+                latch.countDown();
+                log.error(request.getRequestLine() + " cancelled");
+              }
+
+            })
+        );
     try {
-      future.get();
-      zipUpShp();
-      isDone = true;
-      log.info("Done with '" + outputZip + "'");
-    } catch ( InterruptedException | ExecutionException e ) {
+      latch.await();
+    } catch ( InterruptedException e ) {
       e.printStackTrace();
     }
+    zipUpShp();
+    isDone = true;
+    log.info("Done with '" + outputZip + "'");
 
   }
 

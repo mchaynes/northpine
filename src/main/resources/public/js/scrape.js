@@ -44,17 +44,18 @@ function refreshStatus() {
         finished = response.finished;
         if( finished === true) {
             clearInterval(loop);
+            $("#status").text("Finished!");
             $("#download").prop("disabled", false);
         }
         else {
             $("#download").prop("disabled", true);
+            displayElements();
+            var progressBar =$("#progressBar");
+            var percentDone = 100 * response.done / response.total;
+            progressBar.css("width", percentDone - 0.75 + "%");
+            var status = $("#status");
+            status.text( Math.round(percentDone) + "%" );
         }
-        displayElements();
-        var progressBar =$("#progressBar");
-        var percentDone = 100 * response.done / response.total;
-        progressBar.css("width", percentDone - 0.75 + "%");
-        var status = $("#status");
-        status.text( Math.round(percentDone) + "%" );
         console.log((response.done / response.total) + "%");
     })
 }
