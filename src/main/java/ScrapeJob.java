@@ -22,8 +22,6 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -97,7 +95,6 @@ public class ScrapeJob {
 
               @Override
               public void completed(final HttpResponse response) {
-                latch.countDown();
                 String body = "";
                 try(Scanner scanner = new Scanner(response.getEntity().getContent())) {
                   StringBuilder sb = new StringBuilder();
@@ -110,7 +107,8 @@ public class ScrapeJob {
                 }
                 String finalBody = body;
                 CompletableFuture.supplyAsync( () -> writeJSON( new JSONObject( finalBody ) ) )
-                  .thenAccept( str -> addToShp( str ) );
+                  .thenAccept( str -> addToShp( str ) )
+                  .thenRun( latch::countDown );
               }
 
               @Override
@@ -129,8 +127,9 @@ public class ScrapeJob {
         );
     try {
       latch.await();
+      log.info("Done waiting for responses");
     } catch ( InterruptedException e ) {
-      e.printStackTrace();
+      log.error("Couldn't be awaited",e);
     }
     zipUpShp();
     isDone = true;
@@ -220,7 +219,6 @@ public class ScrapeJob {
       while ( scanner.hasNext() ) {
         sb.append( scanner.next() );
       }
-      log.info("received json response");
       return new JSONObject( sb.toString() );
     } catch ( IOException e ) {
       throw new IllegalArgumentException( e );
@@ -231,9 +229,8 @@ public class ScrapeJob {
     try {
       ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile","-append", outputFileBase + ".shp", jsonFile );
       Process p = builder.start();
-      log.info("adding " + jsonFile);
       p.waitFor();
-      log.info("added " + jsonFile);
+      log.info("added " + jsonFile + " to " + outputFileBase );
       CompletableFuture.runAsync( () -> {
         try {
           Files.delete( Paths.get( jsonFile ) );

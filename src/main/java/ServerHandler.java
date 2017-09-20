@@ -13,8 +13,6 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import static spark.Spark.halt;
 
@@ -38,6 +36,7 @@ public class ServerHandler {
       log.error("invalid url '" + urlStr + "'");
       halt(400, "malformed url");
     }
+    res.cookie( "job", urlStr );
 
   }
 
@@ -46,6 +45,7 @@ public class ServerHandler {
     ScrapeJob scraper = new ScrapeJob( url );
     scrapeJobs.put( url, scraper );
     CompletableFuture.runAsync( scraper::startScraping );
+    res.cookie( "job", url );
     return "started scraping: " + scraper.getName();
   }
 
@@ -60,6 +60,7 @@ public class ServerHandler {
       response.accumulate( "finished", job.isJobDone() );
       response.accumulate( "done", job.getNumDone() );
       response.accumulate( "total", job.getTotal() );
+      response.accumulate( "layer", job.getName() );
       return response.toString( 2 );
     }
   }

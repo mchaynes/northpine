@@ -1,18 +1,8 @@
-#greyBar {
-    width: 99%;
-    background-color: #ddd;
-    align-content: center;
-}
-#progressBar {
-    width: 1%;
-    height: 30px;
-    background-color: #4CAF50;
-}
-
 h1 {
-    text-align: center;
+    text-align: left;
     text-transform: uppercase;
     color: #4CAF50;
+    font-family: "Liberation Sans", sans-serif;
 }
 p {
     text-indent: 50px;
@@ -24,43 +14,52 @@ a {
     color: #008CBA;
 }
 
+label, input, button {
+    font-size: inherit;
+    padding: 0.55em;
+    margin: 0.1em 0.2em;
+    -moz-box-sizing: content-box;
+    -webkit-box-sizing: content-box;
+    box-sizing: content-box;
+}
+#progressBar {
+    background-color: lightgray;
+    border-radius: 13px; /* (height of inner div) / 2 + padding */
+    padding: 3px;
+    width: 50%;
+    float: left;
+}
+
+#progressBar > div {
+    background-color: #4CAF50;
+    width: 40%; /* Adjust with JavaScript */
+    height: 20px;
+    border-radius: 10px;
+}
+
+
 #submit, #download {
     background-color: #4CAF50; /* Green */
-    border: none;
     color: white;
-    padding: 15px 32px;
-    text-align: center;
-    text-decoration: none;
+    border: none;
     display: inline-block;
-    font-size: 16px;
+    float: right;
+    width: 10%;
 }
-input[type=text], select {
-    width: 100%;
-    padding: 12px 20px;
-    margin: 8px 0;
-    display: inline-block;
+
+#submit {
+    margin-right: 38%;
+}
+
+#url {
+    width: 50%;
+    padding: 0.5% 0.5%;
+    margin: auto;
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
-}
-
-input[type=button] {
-    width: 100%;
-    background-color: #4CAF50;
-    color: white;
-    padding: 14px 20px;
-    margin: 8px 0;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-input[type=button]:hover {
-    background-color: #45a049;
-}
-
-div {
-    border-radius: 5px;
-    background-color: #f2f2f2;
-    padding: 5px;
+    align-self: center;
+    align-content: flex-start;
+    display: inline-block;
+    float: left;
 }

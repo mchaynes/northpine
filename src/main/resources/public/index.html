@@ -9,17 +9,18 @@
 </head>
 <body>
     <h1>Enter url:</h1>
-    <form id="urlForm">
-        <input type="text" id="url">
-    </form>
+        <form id="urlForm">
+            <input type="search" id="url" class="txtBox" title="Enter Url">
+        </form>
+        <button id="submit" class="btn" onclick="start()">Submit</button>
     <br>
-    <button id="submit" onclick="start()">Submit</button>
+    <br>
     <br>
     <h1 id="status" >Progress</h1>
-    <div id="greyBar">
-        <div id="progressBar"></div>
+    <div id="progressBar">
+        <div></div>
     </div>
-    <br>
     <button id="download" onclick="download()" disabled=true >Download</button>
+    <br>
 </body>
 </html>
