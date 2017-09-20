@@ -1,3 +1,5 @@
+package com.northpine;
+
 import static spark.Spark.*;
 
 public class Server {
