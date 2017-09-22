@@ -50,6 +50,10 @@ label, input, button {
 #submit {
     margin-right: 38%;
 }
+#download {
+    position: relative;
+    left: -38%;
+}
 
 #url {
     width: 50%;

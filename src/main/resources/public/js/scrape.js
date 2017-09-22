@@ -52,7 +52,7 @@ function refreshStatus() {
         else {
             $("#download").prop("disabled", true);
             displayElements();
-            var progressBar =$("#progressBar");
+            var progressBar =$("#progressBar").find("> div");
             var percentDone = 100 * response.done / response.total;
             progressBar.css("width", percentDone + "%");
             var status = $("#status");
