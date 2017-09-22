@@ -56,12 +56,14 @@ function refreshStatus() {
         finished = response.finished;
         if( finished === true) {
             clearInterval(loop);
-            $("#status").text("Finished!");
+            let status = $("#status");
+            status.text("Finished!");
             $("#download").prop("disabled", false);
             let percentDone = 100 * response.done / response.total;
             $("#progressBar").find("> div").css("width", percentDone + "%");
             download();
             displayUrlBox();
+            status.text("Another?");
         }
         else if(response.total !== 0 && response.total === response.done) {
             $("#status").text("Zipping up files...");
