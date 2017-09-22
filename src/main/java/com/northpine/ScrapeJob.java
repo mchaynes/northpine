@@ -229,7 +229,7 @@ public class ScrapeJob {
 
   private void addToShp(String jsonFile) {
     try {
-      ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile","-a_srs", "EPSG:3857","-append", outputFileBase + ".shp", jsonFile );
+      ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile", "-append", outputFileBase + ".shp", jsonFile );
       Process p = builder.start();
       Scanner scanner = new Scanner( p.getInputStream() );
       while(scanner.hasNextLine()) {
