@@ -177,6 +177,7 @@ public class ScrapeJob {
           } else if(pathToShp.toString().equals( outputFileBase + ".prj" )) {
             log.error("Couldn't find '" + pathToShp + "', using default web_mercator.prj" );
             URL webMercator = this.getClass().getResource( "web_mercator.prj" );
+            log.info( webMercator.toString() );
             Files.copy(Paths.get(webMercator.getFile()), zOut);
           }
           zOut.closeEntry();
