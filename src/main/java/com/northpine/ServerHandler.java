@@ -38,8 +38,6 @@ public class ServerHandler {
       log.error("invalid url '" + urlStr + "'");
       halt(400, "malformed url");
     }
-    res.cookie( "job", urlStr );
-
   }
 
   public String handleScrapeStartRequest(Request req, Response res) {

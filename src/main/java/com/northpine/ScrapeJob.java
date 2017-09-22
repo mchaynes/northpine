@@ -60,7 +60,6 @@ public class ScrapeJob {
   private String queryUrlStr;
 
 
-
   /**
    * @param layerUrl Does not include "/query" appended to end of url to layer.
    */
@@ -104,8 +103,8 @@ public class ScrapeJob {
                     sb.append( scanner.next() );
                   }
                   body = sb.toString();
-                } catch ( IOException e ) {
-                  e.printStackTrace();
+                } catch ( IOException io ) {
+                  log.error("couldn't get body of response", io);
                 }
                 String finalBody = body;
                 CompletableFuture.supplyAsync( () -> writeJSON( new JSONObject( finalBody ) ) )
