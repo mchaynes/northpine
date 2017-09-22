@@ -1,17 +1,15 @@
+body {
+    background-color: #2c2c2c;
+    color: #2c2c2c;
+    text-align: center;
+    vertical-align: middle;
+    font-family: Tahoma sans-serif;
+}
+
 h1 {
-    text-align: left;
-    text-transform: uppercase;
-    color: #4CAF50;
-    font-family: "Liberation Sans", sans-serif;
-}
-p {
-    text-indent: 50px;
-    text-align: justify;
-    letter-spacing: 3px;
-}
-a {
-    text-decoration:none;
-    color: #008CBA;
+    color: white;
+    font-size: 500%;
+    font-family: "Tahoma", sans-serif;
 }
 
 label, input, button {
@@ -22,25 +20,29 @@ label, input, button {
     -webkit-box-sizing: content-box;
     box-sizing: content-box;
 }
+
 #progressBar {
-    background-color: lightgray;
-    border-radius: 13px; /* (height of inner div) / 2 + padding */
-    padding: 3px;
     width: 50%;
-    float: left;
+    height: 100%;
+    margin: auto;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    display: inline-block;
+    resize: none;
 }
 
 #progressBar > div {
-    background-color: #4CAF50;
-    width: 40%; /* Adjust with JavaScript */
-    height: 20px;
-    border-radius: 10px;
+    background-color: white;
+    width: 0; /* Adjust with JavaScript */
+    height: 40px;
+    border-radius: 3px;
 }
 
 
 #submit, #download {
-    background-color: #4CAF50; /* Green */
-    color: white;
+    background-color: white; /* Green */
+    color: #4CAF50;
     border: none;
     display: inline-block;
     float: right;
@@ -50,13 +52,10 @@ label, input, button {
 #submit {
     margin-right: 38%;
 }
-#download {
-    position: relative;
-    left: -38%;
-}
 
-#url {
+#urlBox {
     width: 50%;
+    height: 40px;
     padding: 0.5% 0.5%;
     margin: auto;
     border: 1px solid #ccc;
@@ -65,5 +64,5 @@ label, input, button {
     align-self: center;
     align-content: flex-start;
     display: inline-block;
-    float: left;
+    resize: none;
 }

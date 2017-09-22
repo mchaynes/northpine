@@ -46,7 +46,7 @@ public class ServerHandler {
     scrapeJobs.put( url, scraper );
     CompletableFuture.runAsync( scraper::startScraping );
     res.cookie( "job", url );
-    return "started scraping: " + scraper.getName();
+    return scraper.getName();
   }
 
   public String handleGetProgress(Request req, Response res) {

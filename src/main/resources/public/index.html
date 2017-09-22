@@ -5,22 +5,16 @@
     <meta charset="UTF-8">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script type="text/javascript" src="js/scrape.js"></script>
-    <title>Scrape </title>
+    <title>NorthPine</title>
 </head>
 <body>
-    <h1>Enter url:</h1>
-        <form id="urlForm">
-            <input type="search" id="url" class="txtBox" title="Enter Url">
-        </form>
-        <button id="submit" class="btn" onclick="start()">Submit</button>
-    <br>
-    <br>
-    <br>
-    <h1 id="status" >Progress</h1>
+    <h1 id="status">Enter Url</h1>
+    <form method="get">
+    <input type="text" id="urlBox" onsubmit="return start(event)" placeholder="ex. https://www.fws.gov/wetlands/arcgis/rest/services/Wetlands/MapServer/0">
+    </form>
     <div id="progressBar">
-        <div></div>
+        <div>
+        </div>
     </div>
-    <button id="download" onclick="download()" disabled=true >Download</button>
-    <br>
 </body>
 </html>
