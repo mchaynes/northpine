@@ -25,7 +25,6 @@ import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -170,15 +169,17 @@ public class ScrapeJob {
       SHP_FILE_EXTENSIONS.forEach( ext -> {
         try {
           Path pathToShp = Paths.get(outputFileBase + ext);
-          if(Files.exists( pathToShp )) {
-            ZipEntry entry = new ZipEntry( layerName + ext );
-            zOut.putNextEntry( entry );
+          ZipEntry entry = new ZipEntry( layerName + ext );
+          zOut.putNextEntry( entry );
+          if(Files.exists( pathToShp ) && pathToShp.toString().equals( outputFileBase + ".prj" )) {
             Files.copy(pathToShp, zOut);
-            zOut.closeEntry();
             Files.deleteIfExists( pathToShp );
-          } else {
-            log.error("Couldn't find '" + pathToShp + "'");
+          } else if(pathToShp.toString().equals( outputFileBase + ".prj" )) {
+            log.error("Couldn't find '" + pathToShp + "', using default web_mercator.prj" );
+            URL webMercator = this.getClass().getResource( "web_mercator.prj" );
+            Files.copy(Paths.get(webMercator.getFile()), zOut);
           }
+          zOut.closeEntry();
         } catch ( IOException e ) {
           log.error("Couldn't zip '" + outputFileBase + ext + "'", e);
         }
@@ -228,8 +229,12 @@ public class ScrapeJob {
 
   private void addToShp(String jsonFile) {
     try {
-      ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile","-append", outputFileBase + ".shp", jsonFile );
+      ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile","-a_srs", "EPSG:3857","-append", outputFileBase + ".shp", jsonFile );
       Process p = builder.start();
+      Scanner scanner = new Scanner( p.getInputStream() );
+      while(scanner.hasNextLine()) {
+        log.error(scanner.nextLine());
+      }
       p.waitFor();
       CompletableFuture.runAsync( () -> {
         try {
