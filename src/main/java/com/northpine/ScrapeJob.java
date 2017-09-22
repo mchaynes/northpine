@@ -130,7 +130,7 @@ public class ScrapeJob {
       latch.await();
       log.info("Done waiting for responses");
     } catch ( InterruptedException e ) {
-      log.error("Couldn't be awaited",e);
+      log.error("Couldn't be awaited", e);
     }
     zipUpShp();
     isDone = true;
@@ -175,10 +175,10 @@ public class ScrapeJob {
           ZipEntry entry = new ZipEntry( layerName + ext );
           zOut.putNextEntry( entry );
           Files.copy(pathToShp, zOut);
-          Files.deleteIfExists( pathToShp );
           zOut.closeEntry();
+          Files.deleteIfExists( pathToShp );
         } catch ( IOException e ) {
-          e.printStackTrace();
+          log.error("Couldn't zip: " + outputFileBase + ext, e);
         }
       } );
     zOut.close();
