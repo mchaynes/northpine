@@ -15,6 +15,7 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -181,7 +182,7 @@ public class ScrapeJob {
           }
           else {
             log.info("writing default web_mercator prj");
-            Files.write( pathToShp, WEB_MERCATOR_PRJ.getBytes() );
+            zOut.write( WEB_MERCATOR_PRJ.getBytes() );
           }
           zOut.closeEntry();
         } catch ( IOException e ) {
