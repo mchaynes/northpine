@@ -28,14 +28,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-
 /**
  * Scrapes ArcGIS REST Servers
  */
 public class ScrapeJob {
 
   private static final int CHUNK_SIZE = 200;
+
+  private static final String WEB_MERCATOR_PRJ = "PROJCS[\"WGS_1984_Web_Mercator_Auxiliary_Sphere\",GEOGCS[\"GCS_WGS_1984\",DATUM[\"D_WGS_1984\",SPHEROID[\"WGS_1984\",6378137.0,298.257223563]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Mercator_Auxiliary_Sphere\"],PARAMETER[\"False_Easting\",0.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",0.0],PARAMETER[\"Standard_Parallel_1\",0.0],PARAMETER[\"Auxiliary_Sphere_Type\",0.0],UNIT[\"Meter\",1.0]]";
 
   private static final String OUTPUT_FOLDER = "output";
 
@@ -175,9 +175,13 @@ public class ScrapeJob {
           Path pathToShp = Paths.get(outputFileBase + ext);
           ZipEntry entry = new ZipEntry( layerName + ext );
           zOut.putNextEntry( entry );
-          if(Files.exists( pathToShp ) && pathToShp.toString().equals( outputFileBase + ".prj" )) {
+          if( Files.exists( pathToShp ) ) {
             Files.copy(pathToShp, zOut);
             Files.deleteIfExists( pathToShp );
+          }
+          else {
+            log.info("writing default web_mercator prj");
+            Files.write( pathToShp, WEB_MERCATOR_PRJ.getBytes() );
           }
           zOut.closeEntry();
         } catch ( IOException e ) {
