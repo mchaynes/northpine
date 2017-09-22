@@ -28,6 +28,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+
 /**
  * Scrapes ArcGIS REST Servers
  */
@@ -176,9 +178,13 @@ public class ScrapeJob {
             Files.deleteIfExists( pathToShp );
           } else if(pathToShp.toString().equals( outputFileBase + ".prj" )) {
             log.error("Couldn't find '" + pathToShp + "', using default web_mercator.prj" );
-            URL webMercator = this.getClass().getResource( "web_mercator.prj" );
-            log.info( webMercator.toString() );
-            Files.copy(Paths.get(webMercator.getFile()), zOut);
+            URL filePath = Thread.currentThread().getContextClassLoader().getResource( "web_mercator.prj" );
+            if(filePath != null) {
+              Path webMercator =  Paths.get(filePath.getFile());
+              Files.copy(webMercator, zOut);
+            } else {
+              log.error("Something really got messed up");
+            }
           }
           zOut.closeEntry();
         } catch ( IOException e ) {
