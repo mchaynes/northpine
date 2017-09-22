@@ -108,8 +108,10 @@ public class ScrapeJob {
                 } catch ( IOException io ) {
                   log.error("couldn't get body of response", io);
                 }
-                String finalBody = body;
-                CompletableFuture.supplyAsync( () -> writeJSON( new JSONObject( finalBody ) ) )
+                JSONObject jsonObject = new JSONObject( body );
+                int espg = jsonObject.optInt( "espg", 3857 );
+                jsonObject.accumulate( "ESPG", espg );
+                CompletableFuture.supplyAsync( () -> writeJSON( jsonObject ) )
                   .thenAccept( str -> addToShp( str ) )
                   .thenRun( latch::countDown );
               }
@@ -176,15 +178,6 @@ public class ScrapeJob {
           if(Files.exists( pathToShp ) && pathToShp.toString().equals( outputFileBase + ".prj" )) {
             Files.copy(pathToShp, zOut);
             Files.deleteIfExists( pathToShp );
-          } else if(pathToShp.toString().equals( outputFileBase + ".prj" )) {
-            log.error("Couldn't find '" + pathToShp + "', using default web_mercator.prj" );
-            URL filePath = Thread.currentThread().getContextClassLoader().getResource( "web_mercator.prj" );
-            if(filePath != null) {
-              Path webMercator =  Paths.get(filePath.getFile());
-              Files.copy(webMercator, zOut);
-            } else {
-              log.error("Something really got messed up");
-            }
           }
           zOut.closeEntry();
         } catch ( IOException e ) {
