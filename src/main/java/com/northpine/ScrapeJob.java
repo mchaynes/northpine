@@ -25,6 +25,7 @@ import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -134,8 +135,7 @@ public class ScrapeJob {
     }
     zipUpShp();
     isDone = true;
-    log.info("Done with '" + outputZip + "'");
-
+    log.info("Zipped '" + outputZip + "'");
   }
 
   public int getNumDone() {
@@ -166,25 +166,25 @@ public class ScrapeJob {
   }
 
   private void zipUpShp() {
-    try {
-      File zFile = new File( outputZip );
-      ZipOutputStream zOut = new ZipOutputStream( new FileOutputStream( zFile ) );
+    try (ZipOutputStream zOut = new ZipOutputStream( new FileOutputStream( new File( outputZip ) ) )) {
       SHP_FILE_EXTENSIONS.forEach( ext -> {
         try {
           Path pathToShp = Paths.get(outputFileBase + ext);
-          ZipEntry entry = new ZipEntry( layerName + ext );
-          zOut.putNextEntry( entry );
-          Files.copy(pathToShp, zOut);
-          zOut.closeEntry();
-          Files.deleteIfExists( pathToShp );
+          if(Files.exists( pathToShp )) {
+            ZipEntry entry = new ZipEntry( layerName + ext );
+            zOut.putNextEntry( entry );
+            Files.copy(pathToShp, zOut);
+            zOut.closeEntry();
+            Files.deleteIfExists( pathToShp );
+          } else {
+            log.error("Couldn't find '" + pathToShp + "'");
+          }
         } catch ( IOException e ) {
-          log.error("Couldn't zip: " + outputFileBase + ext, e);
+          log.error("Couldn't zip '" + outputFileBase + ext + "'", e);
         }
       } );
-    zOut.close();
-
     } catch ( IOException e ) {
-      e.printStackTrace();
+      log.error("Couldn't open zip '" + outputZip + "'", e);
     }
   }
 
@@ -231,29 +231,26 @@ public class ScrapeJob {
       ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile","-append", outputFileBase + ".shp", jsonFile );
       Process p = builder.start();
       p.waitFor();
-      log.info("added " + jsonFile + " to " + outputFileBase );
       CompletableFuture.runAsync( () -> {
         try {
           Files.delete( Paths.get( jsonFile ) );
-          log.info("deleted " + jsonFile);
         } catch ( IOException e ) {
-          e.printStackTrace();
+          log.error("Couldn't delete " + jsonFile, e);
         }
       } );
       done.incrementAndGet();
     } catch ( IOException | InterruptedException e ) {
-      e.printStackTrace();
+      log.error("ogr2ogr failed", e);
     }
   }
 
   private String writeJSON(JSONObject obj) {
     // e.g. 'output/wetlands1.json'
     String outFile = outputFileBase + current.incrementAndGet() + ".json";
-    log.info("writing " + outFile);
     try ( BufferedWriter br = new BufferedWriter( new FileWriter( new File( outFile ) ) ) ) {
       br.write( obj.toString() );
     } catch ( IOException e ) {
-      e.printStackTrace();
+      log.error("Couldn't write '" + outFile + "'", e);
     }
     return outFile;
   }
