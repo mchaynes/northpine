@@ -77,7 +77,7 @@ public class ScrapeJob {
     current = new AtomicInteger();
     done = new AtomicInteger();
     isDone = false;
-    URL queryUrl = getURL( queryUrlStr + "?where=1=1&returnIdsOnly=true&f=json" );
+    URL queryUrl = getURL( queryUrlStr + "?where=1=1&returnIdsOnly=true&f=json&outSR=3857" );
     JSONObject idsJson = getJsonResponse( queryUrl );
     JSONArray arr = idsJson.getJSONArray( "objectIds" );
     RequestConfig config = RequestConfig.DEFAULT;
