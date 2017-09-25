@@ -15,6 +15,7 @@ public class Server {
   private static Logger log = LoggerFactory.getLogger( Server.class );
 
   public static void main(String[] args) {
+    checkOgrInstall();
     ServerHandler handler = new ServerHandler();
     Path output = Paths.get("output/");
     if( Files.notExists( output ) ) {
@@ -42,4 +43,18 @@ public class Server {
     }
     return 8000; //return default port if heroku-port isn't set (i.e. on localhost)
   }
+
+  private static void checkOgrInstall() {
+    try {
+      Runtime rt = Runtime.getRuntime();
+      String[] commands = {"ogr2ogr"};
+      rt.exec( commands );
+    } catch (IOException io) {
+      log.info("Something is wrong with ogr2ogr", io);
+      System.exit(1);
+    }
+  }
+
+
+
 }
