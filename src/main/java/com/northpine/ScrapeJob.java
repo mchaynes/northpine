@@ -236,7 +236,7 @@ public class ScrapeJob {
     try {
       ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile", "-append", outputFileBase + ".shp", jsonFile );
       Process p = builder.start();
-      Scanner scanner = new Scanner( p.getInputStream() );
+      Scanner scanner = new Scanner( p.getErrorStream() );
       while(scanner.hasNextLine()) {
         log.error(scanner.nextLine());
       }
