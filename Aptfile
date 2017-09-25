@@ -1,2 +1,5 @@
 :repo:deb http://ppa.launchpad.net/ubuntugis/ppa/ubuntu xenial main
+libstdc++6
+libgdal20
+gdal-abi-2-1-3
 gdal-bin
