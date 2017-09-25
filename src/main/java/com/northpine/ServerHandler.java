@@ -45,6 +45,8 @@ public class ServerHandler {
     ScrapeJob scraper = new ScrapeJob( url );
     scrapeJobs.put( url, scraper );
     CompletableFuture.runAsync( scraper::startScraping );
+    String startJobLogMsg = String.format("scrape requested for %s from ip %s", url, req.ip());
+    log.info(startJobLogMsg);
     res.cookie( "job", url );
     return scraper.getName();
   }
