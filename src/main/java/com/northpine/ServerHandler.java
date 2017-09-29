@@ -63,6 +63,7 @@ public class ServerHandler {
       response.accumulate( "done", job.getNumDone() );
       response.accumulate( "total", job.getTotal() );
       response.accumulate( "layer", job.getName() );
+      response.accumulate( "failed", job.isFailed() );
       return response.toString( 2 );
     }
   }

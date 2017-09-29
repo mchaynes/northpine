@@ -1,5 +1,6 @@
 package com.northpine;
 
+import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -15,7 +16,6 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -44,6 +47,8 @@ public class ScrapeJob {
 
   private static final Logger log = LoggerFactory.getLogger( ScrapeJob.class );
 
+  private final ExecutorService executor;
+
   private String layerName;
 
   private AtomicInteger current;
@@ -51,6 +56,8 @@ public class ScrapeJob {
   private AtomicInteger done;
 
   private AtomicInteger total;
+
+  private AtomicBoolean failed;
 
   private boolean isDone;
 
@@ -67,8 +74,10 @@ public class ScrapeJob {
    * @param layerUrl Does not include "/query" appended to end of url to layer.
    */
   public ScrapeJob(String layerUrl) {
+    executor = Executors.newWorkStealingPool();
     current = new AtomicInteger();
     total = new AtomicInteger();
+    failed = new AtomicBoolean( false);
     this.layerUrl = layerUrl ;
     this.queryUrlStr = layerUrl + "/query";
     this.layerName = getLayerName();
@@ -108,12 +117,15 @@ public class ScrapeJob {
                   body = sb.toString();
                 } catch ( IOException io ) {
                   log.error("couldn't get body of response", io);
+                  failed.set( true );
                 }
                 JSONObject jsonObject = new JSONObject( body );
-                int espg = jsonObject.optInt( "espg", 3857 );
-                jsonObject.accumulate( "ESPG", espg );
-                CompletableFuture.supplyAsync( () -> writeJSON( jsonObject ) )
+                if(!jsonObject.isNull( "error" )) {
+//                  failJob( "json response contains error: " + jsonObject.getString( "error" ), null );
+                }
+                CompletableFuture.supplyAsync( () -> writeJSON( jsonObject ), executor )
                   .thenAccept( str -> addToShp( str ) )
+//                  .exceptionally( (ex) -> failJob( ex.getMessage(), ex ) )
                   .thenRun( latch::countDown );
               }
 
@@ -142,6 +154,13 @@ public class ScrapeJob {
     log.info("Zipped '" + outputZip + "'");
   }
 
+//  private Void failJob(String message, Throwable t) {
+//    log.trace( message, t );
+//    failed.set(true);
+//    executor.shutdownNow();
+//    return null;
+//  }
+
   public int getNumDone() {
     if(done != null) {
       return done.get();
@@ -160,6 +179,10 @@ public class ScrapeJob {
 
   public boolean isJobDone() {
     return isDone;
+  }
+
+  public boolean isFailed() {
+    return failed.get();
   }
 
   private String getLayerName() {
@@ -234,7 +257,7 @@ public class ScrapeJob {
 
   private void addToShp(String jsonFile) {
     try {
-      ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile", "-append", outputFileBase + ".shp", jsonFile );
+      ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile","-lco", "ENCODING=UTF-8", "-append", outputFileBase + ".shp", jsonFile );
       Process p = builder.start();
       Scanner scanner = new Scanner( p.getErrorStream() );
       while(scanner.hasNextLine()) {

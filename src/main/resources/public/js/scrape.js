@@ -54,7 +54,9 @@ function start() {
 function refreshStatus() {
     $.getJSON("/status", {url : url }, function(response) {
         finished = response.finished;
-        if( finished === true) {
+        if(response.failed === true) {
+            $("#status").text("Failed :(");
+        } else if( finished === true) {
             clearInterval(loop);
             let status = $("#status");
             status.text("Finished!");
@@ -64,8 +66,7 @@ function refreshStatus() {
             download();
             displayUrlBox();
             status.text("Another?");
-        }
-        else if(response.total !== 0 && response.total === response.done) {
+        } else if(response.total !== 0 && response.total === response.done) {
             $("#status").text("Zipping up files...");
         } else if(response.total !== 0) {
             $("#download").prop("disabled", true);

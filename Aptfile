@@ -1,3 +1,2 @@
-:repo:deb http://ppa.launchpad.net/ubuntugis/ppa/ubuntu trusty main
-libgdal-grass
+:repo:deb http://ppa.launchpad.net/ubuntugis/ppa/ubuntu
 gdal-bin
