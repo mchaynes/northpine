@@ -73,9 +73,10 @@ public class ServerHandler {
     if( !scrapeJobs.containsKey( url ) ) {
       res.status( 404 );
       return NO_JOB_FOUND_MESSAGE;
+    } else if(scrapeJobs.get(url).isFailed()) {
+      res.status(500);
+      return "job failed... submit another";
     } else {
-
-
       File file = new File(scrapeJobs.get(url).getOutput());
       res.raw().setContentType("application/octet-stream");
       res.raw().setHeader("Content-Disposition","attachment; filename="+file.getName() );

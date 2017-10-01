@@ -8,6 +8,7 @@ import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +20,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -68,6 +66,7 @@ public class ScrapeJob {
   private String layerUrl;
 
   private String queryUrlStr;
+  private String failMessage;
 
 
   /**
@@ -90,7 +89,7 @@ public class ScrapeJob {
     done = new AtomicInteger();
     isDone = false;
     URL queryUrl = getURL( queryUrlStr + "?where=1=1&returnIdsOnly=true&f=json&outSR=3857" );
-    JSONObject idsJson = getJsonResponse( queryUrl );
+    JSONObject idsJson = getJsonResponse( queryUrl ).orElseThrow( RuntimeException::new );
     JSONArray arr = idsJson.getJSONArray( "objectIds" );
     RequestConfig config = RequestConfig.DEFAULT;
     CloseableHttpAsyncClient httpClient = HttpAsyncClients.custom()
@@ -154,13 +153,6 @@ public class ScrapeJob {
     log.info("Zipped '" + outputZip + "'");
   }
 
-//  private Void failJob(String message, Throwable t) {
-//    log.trace( message, t );
-//    failed.set(true);
-//    executor.shutdownNow();
-//    return null;
-//  }
-
   public int getNumDone() {
     if(done != null) {
       return done.get();
@@ -185,11 +177,20 @@ public class ScrapeJob {
     return failed.get();
   }
 
+  public String getFailMessage() {
+    return failMessage;
+  }
+
+  private void failJob(String failMessage) {
+    this.failMessage = failMessage;
+    failed.set( true );
+  }
+
   private String getLayerName() {
     String jsonLayerDeetsUrlStr = layerUrl + "?f=json";
     URL jsonLayerDeetsUrl = getURL( jsonLayerDeetsUrlStr );
-    JSONObject response = getJsonResponse( jsonLayerDeetsUrl );
-    return response.getString( "name" );
+
+    return getJsonResponse( jsonLayerDeetsUrl ).orElseThrow( RuntimeException::new ).getString( "name" );
   }
 
   private void zipUpShp() {
@@ -210,6 +211,7 @@ public class ScrapeJob {
           zOut.closeEntry();
         } catch ( IOException e ) {
           log.error("Couldn't zip '" + outputFileBase + ext + "'", e);
+          failJob("Couldn't zip up file");
         }
       } );
     } catch ( IOException e ) {
@@ -235,7 +237,7 @@ public class ScrapeJob {
     }
   }
 
-  private JSONObject getJsonResponse(URL queryUrl) {
+  private Optional<JSONObject> getJsonResponse(URL queryUrl) {
     HttpURLConnection connection;
     try {
       connection = ( HttpURLConnection ) queryUrl.openConnection();
@@ -249,9 +251,15 @@ public class ScrapeJob {
       while ( scanner.hasNext() ) {
         sb.append( scanner.next() );
       }
-      return new JSONObject( sb.toString() );
+      return Optional.of(new JSONObject( sb.toString() ));
     } catch ( IOException e ) {
-      throw new IllegalArgumentException( e );
+      log.error("connection error", e);
+      failJob( "reading body of response failed" );
+      return Optional.empty();
+    } catch (JSONException exception) {
+      log.error("layer sent invalid json response, probably not a valid layer", exception);
+      failJob( "invalid layer response, is this an arcgis server?" );
+      return Optional.empty();
     }
   }
 
@@ -259,21 +267,18 @@ public class ScrapeJob {
     try {
       ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile", "-append", outputFileBase + ".shp", jsonFile );
       Process p = builder.start();
-      Scanner scanner = new Scanner( p.getErrorStream() );
-      while(scanner.hasNextLine()) {
-        log.error(scanner.nextLine());
-      }
       p.waitFor();
       CompletableFuture.runAsync( () -> {
         try {
           Files.delete( Paths.get( jsonFile ) );
         } catch ( IOException e ) {
-          log.error("Couldn't delete " + jsonFile, e);
+          log.warn("Couldn't delete " + jsonFile, e);
         }
       } );
       done.incrementAndGet();
     } catch ( IOException | InterruptedException e ) {
       log.error("ogr2ogr failed", e);
+      failJob( "ogr2ogr failed" );
     }
   }
 
@@ -284,6 +289,7 @@ public class ScrapeJob {
       br.write( obj.toString() );
     } catch ( IOException e ) {
       log.error("Couldn't write '" + outFile + "'", e);
+      failJob( "Failed to write a response.. our fault, try again?" );
     }
     return outFile;
   }
