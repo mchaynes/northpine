@@ -58,6 +58,7 @@ function refreshStatus() {
         if(response.failed === true) {
             $("#status").text("Failed :(");
         } else if( finished === true && !alreadyRanDownload ) {
+
             clearInterval(loop);
             let status = $("#status");
             status.text("Finished!");
