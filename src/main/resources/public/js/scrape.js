@@ -1,6 +1,7 @@
 let url;
 let loop;
 let finished = false;
+let alreadyRanDownload = false;
 
 $("#document").ready(onReady);
 
@@ -56,7 +57,7 @@ function refreshStatus() {
         finished = response.finished;
         if(response.failed === true) {
             $("#status").text("Failed :(");
-        } else if( finished === true) {
+        } else if( finished === true && !alreadyRanDownload ) {
             clearInterval(loop);
             let status = $("#status");
             status.text("Finished!");
@@ -80,5 +81,8 @@ function refreshStatus() {
 }
 
 function download() {
-    window.location.replace("/output?url=" + url);
+    if(!alreadyRanDownload) {
+        alreadyRanDownload = true;
+        window.location.replace("/output?url=" + url);
+    }
 }
