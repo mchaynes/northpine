@@ -53,33 +53,41 @@ function start() {
 }
 
 function refreshStatus() {
-    $.getJSON("/status", {url : url }, function(response) {
-        finished = response.finished;
-        if(response.failed === true) {
-            $("#status").text("Failed :(");
-        } else if( finished === true && !alreadyRanDownload ) {
-
-            clearInterval(loop);
-            let status = $("#status");
-            status.text("Finished!");
-            $("#download").prop("disabled", false);
-            let percentDone = 100 * response.done / response.total;
-            $("#progressBar").find("> div").css("width", percentDone + "%");
-            download();
-            displayUrlBox();
-            status.text("Another?");
-        } else if(response.total !== 0 && response.total === response.done) {
-            $("#status").text("Zipping up files...");
-        } else if(response.total !== 0) {
-            $("#download").prop("disabled", true);
-            let progressBar =$("#progressBar").find("> div");
-            let percentDone = 100 * response.done / response.total;
-            progressBar.css("width", percentDone + "%");
-            let status = $("#status");
-            status.text( response.layer + ": " + Math.round(percentDone) + "%" );
-        }
-    })
+    $.getJSON("/status", {url : url }, updateStatus);
 }
+
+/**
+ *
+ * @param status {{finished: boolean, failed: boolean, layer: string, total: number, done: number, errorMessage: string}}
+ */
+function updateStatus(status) {
+    finished = status.finished;
+    if(status.failed === true) {
+        clearInterval(loop);
+        $("#status").text("Failed :(");
+        alert(status.errorMessage);
+    } else if( finished === true && !alreadyRanDownload ) {
+        clearInterval(loop);
+        let status = $("#status");
+        status.text("Finished!");
+        $("#download").prop("disabled", false);
+        let percentDone = 100 * status.done / status.total;
+        $("#progressBar").find("> div").css("width", percentDone + "%");
+        download();
+        displayUrlBox();
+        status.text("Another?");
+    } else if(status.total !== 0 && status.total === status.done) {
+        $("#status").text("Zipping up files...");
+    } else if(status.total !== 0) {
+        $("#download").prop("disabled", true);
+        let progressBar =$("#progressBar").find("> div");
+        let percentDone = 100 * status.done / status.total;
+        progressBar.css("width", percentDone + "%");
+        $(  "#status").text( status.layer + ": " + Math.round(percentDone) + "%" );
+    }
+}
+
+
 
 function download() {
     if(!alreadyRanDownload) {

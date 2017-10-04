@@ -42,7 +42,6 @@
                 <version>0.4.4</version>
                 <configuration>
                     <jdkVersion>1.8</jdkVersion>
-                    <!-- Use your own application name -->
                     <appName>northpine</appName>
                     <processTypes>
                         <!-- Tell Heroku how to launch your application -->
