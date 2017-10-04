@@ -204,9 +204,12 @@ public class ScrapeJob {
             Files.copy(pathToShp, zOut);
             Files.deleteIfExists( pathToShp );
           }
-          else {
-            log.info("writing default web_mercator prj");
+          else if (".prj".equals( ext )) {
+            log.warn("writing default web_mercator prj");
             zOut.write( WEB_MERCATOR_PRJ.getBytes() );
+          }
+          else {
+            failJob( "ogr2ogr2 failed somewhere" );
           }
           zOut.closeEntry();
         } catch ( IOException e ) {
