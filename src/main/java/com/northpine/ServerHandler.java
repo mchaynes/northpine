@@ -42,13 +42,21 @@ public class ServerHandler {
 
   public String handleScrapeStartRequest(Request req, Response res) {
     String url = req.queryMap( "url" ).value();
-    ScrapeJob scraper = new ScrapeJob( url );
-    scrapeJobs.put( url, scraper );
-    CompletableFuture.runAsync( scraper::startScraping );
     String startJobLogMsg = String.format("scrape requested for %s from ip %s", url, req.ip());
     log.info(startJobLogMsg);
-    res.cookie( "job", url );
-    return scraper.getName();
+    if(scrapeJobs.containsKey(url)) {
+      //If by some stroke of luck the job has already started and hasn't been cleared, don't restart the job, just pick
+      //where you left off.
+      return scrapeJobs.get(url).getName();
+
+    } else {
+      //Start a new scrape job
+      ScrapeJob scraper = new ScrapeJob( url );
+      scrapeJobs.put( url, scraper );
+      CompletableFuture.runAsync( scraper::startScraping );
+      res.cookie( "job", url );
+      return scraper.getName();
+    }
   }
 
   public String handleGetProgress(Request req, Response res) {
