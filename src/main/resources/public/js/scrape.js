@@ -62,6 +62,7 @@ function refreshStatus() {
  */
 function updateStatus(status) {
     finished = status.finished;
+    alertIfBigJob(status.total);
     if(status.failed === true) {
         clearInterval(loop);
         $("#status").text("Failed :(");
@@ -84,6 +85,20 @@ function updateStatus(status) {
         let percentDone = 100 * status.done / status.total;
         progressBar.css("width", percentDone + "%");
         $(  "#status").text( status.layer + ": " + Math.round(percentDone) + "%" );
+    }
+}
+
+
+let alreadyAlerted = false;
+const BIG_JOB_SIZE = 500;
+/**
+ * @param jobSize: number
+ */
+function alertIfBigJob(jobSize) {
+    if(jobSize > BIG_JOB_SIZE && !alreadyAlerted) {
+        alert("This is a big job size, server is going to make " + jobSize + " requests to complete the job " +
+        "might be time to go get some coffee :P");
+        alreadyAlerted = true;
     }
 }
 
