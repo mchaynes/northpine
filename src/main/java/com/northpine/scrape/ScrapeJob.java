@@ -1,6 +1,5 @@
-package com.northpine;
+package com.northpine.scrape;
 
-import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -21,10 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
@@ -66,7 +62,10 @@ public class ScrapeJob {
   private String layerUrl;
 
   private String queryUrlStr;
+
   private String failMessage;
+
+  private Queue<String> deleteQueue;
 
 
   /**
@@ -82,6 +81,7 @@ public class ScrapeJob {
     this.layerName = getLayerName();
     this.outputFileBase =  OUTPUT_FOLDER + "/" + layerName;
     this.outputZip =  OUTPUT_FOLDER + "/" + layerName + ".zip";
+    this.deleteQueue = new ConcurrentLinkedDeque<>();
   }
 
   public void startScraping() {
@@ -151,6 +151,8 @@ public class ScrapeJob {
     zipUpShp();
     isDone = true;
     log.info("Zipped '" + outputZip + "'");
+    CompletableFuture.runAsync(this::deleteJsonFiles);
+    log.info("Done with job.");
   }
 
   public int getNumDone() {
@@ -159,6 +161,11 @@ public class ScrapeJob {
     } else {
       return -1;
     }
+  }
+
+  public void stopJob() {
+    executor.shutdownNow();
+
   }
 
   public String getName() {
@@ -191,6 +198,19 @@ public class ScrapeJob {
     URL jsonLayerDeetsUrl = getURL( jsonLayerDeetsUrlStr );
 
     return getJsonResponse( jsonLayerDeetsUrl ).orElseThrow( RuntimeException::new ).getString( "name" );
+  }
+
+  private void deleteJsonFiles() {
+    int size = deleteQueue.size();
+    while(!deleteQueue.isEmpty()) {
+      String fileToDelete = deleteQueue.poll();
+      try {
+        Files.delete(Paths.get(fileToDelete));
+      } catch (IOException e) {
+        log.error("Couldn't delete '" + fileToDelete + "'", e);
+      }
+    }
+    log.info("Deleted " + size + " files");
   }
 
   private void zipUpShp() {
@@ -271,13 +291,7 @@ public class ScrapeJob {
       ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile", "-append", outputFileBase + ".shp", jsonFile );
       Process p = builder.start();
       p.waitFor();
-      CompletableFuture.runAsync( () -> {
-        try {
-          Files.delete( Paths.get( jsonFile ) );
-        } catch ( IOException e ) {
-          log.warn("Couldn't delete " + jsonFile, e);
-        }
-      } );
+      deleteQueue.add(jsonFile);
       done.incrementAndGet();
     } catch ( IOException | InterruptedException e ) {
       log.error("ogr2ogr failed", e);

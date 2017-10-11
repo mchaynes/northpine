@@ -1,5 +1,6 @@
-package com.northpine;
+package com.northpine.server;
 
+import com.northpine.scrape.ScrapeJob;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,7 @@ public class ServerHandler {
   private Map<String, ScrapeJob> scrapeJobs = new HashMap<>();
 
 
-  public void checkUrlParam(Request req, Response res) {
+  void checkUrlParam(Request req, Response res) {
     String urlStr = req.queryMap( "url" ).value();
     if(urlStr == null) {
       halt(400,"url param not supplied");
@@ -40,10 +41,12 @@ public class ServerHandler {
     }
   }
 
-  public String handleScrapeStartRequest(Request req, Response res) {
+  String handleScrapeStartRequest(Request req, Response res) {
     String url = req.queryMap( "url" ).value();
-    String startJobLogMsg = String.format("scrape requested for %s from ip %s", url, req.ip());
-    log.info(startJobLogMsg);
+    JSONObject message = new JSONObject();
+    message.accumulate("ip", req.ip());
+    message.accumulate("url", url);
+    log.info(message.toString());
     if(scrapeJobs.containsKey(url)) {
       //If by some stroke of luck the job has already started and hasn't been cleared, don't restart the job, just pick
       //where you left off.
@@ -67,6 +70,7 @@ public class ServerHandler {
     } else {
       ScrapeJob job = scrapeJobs.get( url );
       JSONObject response = new JSONObject();
+      res.type("application/json");
       response.accumulate( "finished", job.isJobDone() );
       response.accumulate( "done", job.getNumDone() );
       response.accumulate( "total", job.getTotal() );
@@ -77,6 +81,11 @@ public class ServerHandler {
       }
       return response.toString( 2 );
     }
+  }
+
+  public String handleReload(Request req, Response res) {
+
+    return "";
   }
 
   public String handleGetOutput(Request req, Response res) {
@@ -91,6 +100,7 @@ public class ServerHandler {
       File file = new File(scrapeJobs.get(url).getOutput());
       res.raw().setContentType("application/octet-stream");
       res.raw().setHeader("Content-Disposition","attachment; filename="+file.getName() );
+      res.raw().setHeader("Content-Length", Long.toString(file.length()));
       try {
 
         try( BufferedOutputStream bOut = new BufferedOutputStream(res.raw().getOutputStream());
