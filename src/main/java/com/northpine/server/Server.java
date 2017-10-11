@@ -30,7 +30,7 @@ public class Server {
     port(getHerokuAssignedPort());
     staticFiles.location( "public" );
     before( handler::checkUrlParam );
-    get("/scrape",  handler::handleScrapeStartRequest);
+    post("/scrape",  handler::handleScrapeStartRequest);
     get("/status", handler::handleGetProgress);
     get("/output", handler::handleGetOutput);
     get("/nourl", (req, res) -> "need a url");
