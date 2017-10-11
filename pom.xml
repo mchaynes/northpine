@@ -31,7 +31,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>com.northpine.Server</mainClass>
+                            <mainClass>com.northpine.server.Server</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
