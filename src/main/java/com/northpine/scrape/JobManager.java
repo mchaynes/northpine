@@ -2,6 +2,7 @@ package com.northpine.scrape;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public enum JobManager {
@@ -28,7 +29,7 @@ public enum JobManager {
       ScrapeJob job = new ScrapeJob(url);
       jobs.put(url, job);
       numRequesters.put(url, 1);
-      job.startScraping();
+      CompletableFuture.runAsync(job::startScraping);
       return job;
     }
   }
