@@ -27,7 +27,7 @@ cmake-build-debug/
 # Mongo Explorer plugin:
 .idea/**/mongoSettings.xml
 
-## File-based project format:
+## File-based project ogrFormat:
 *.iws
 
 ## Plugin-specific files:
@@ -73,4 +73,4 @@ lib/
 target/
 *jquery*
 output/*
-.DS_Store
+*.DS_Store
