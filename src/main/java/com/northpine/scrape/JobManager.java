@@ -43,7 +43,7 @@ public enum JobManager {
   }
 
   public Optional<ScrapeJob> getJob(String url) {
-      return Optional.of(jobs.get(url));
+      return Optional.ofNullable(jobs.get(url));
   }
 
 

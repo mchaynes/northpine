@@ -74,3 +74,4 @@ target/
 *jquery*
 output/*
 *.DS_Store
+*.gpkg

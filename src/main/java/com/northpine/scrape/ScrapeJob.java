@@ -98,7 +98,7 @@ public class ScrapeJob {
         .setDefaultRequestConfig(config)
         .build();
     httpClient.start();
-    OgrCollector collector = new GeoCollector(layerName);
+    OgrCollector collector = new GeoCollector(outputFileBase);
     List<String> idStrs = buildIdStrs( arr );
     CountDownLatch latch = new CountDownLatch( idStrs.size() );
     idStrs.stream()
@@ -124,7 +124,8 @@ public class ScrapeJob {
                 JSONObject jsonObject = new JSONObject( body );
                 CompletableFuture.supplyAsync( () -> writeJSON( jsonObject ), executor )
                   .thenAccept( collector::addJsonToPool )
-                  .thenRun( latch::countDown );
+                  .thenRun( latch::countDown )
+                  .thenRun(done::incrementAndGet);
               }
 
               @Override
