@@ -1,6 +1,7 @@
 let url;
 let loop;
 let finished = false;
+let alreadyRanDownload = false;
 
 $("#document").ready(onReady);
 
@@ -32,7 +33,7 @@ function start() {
     event.preventDefault();
     url = $("#urlBox").val();
     $("#status").text("Getting layer details...");
-    $.ajax({
+    $.post({
         url: "/scrape",
         data : {
             url : url
@@ -52,33 +53,60 @@ function start() {
 }
 
 function refreshStatus() {
-    $.getJSON("/status", {url : url }, function(response) {
-        finished = response.finished;
-        if(response.failed === true) {
-            $("#status").text("Failed :(");
-        } else if( finished === true) {
-            clearInterval(loop);
-            let status = $("#status");
-            status.text("Finished!");
-            $("#download").prop("disabled", false);
-            let percentDone = 100 * response.done / response.total;
-            $("#progressBar").find("> div").css("width", percentDone + "%");
-            download();
-            displayUrlBox();
-            status.text("Another?");
-        } else if(response.total !== 0 && response.total === response.done) {
-            $("#status").text("Zipping up files...");
-        } else if(response.total !== 0) {
-            $("#download").prop("disabled", true);
-            let progressBar =$("#progressBar").find("> div");
-            let percentDone = 100 * response.done / response.total;
-            progressBar.css("width", percentDone + "%");
-            let status = $("#status");
-            status.text( response.layer + ": " + Math.round(percentDone) + "%" );
-        }
-    })
+    $.getJSON("/status", {url : url }, updateStatus);
 }
 
+/**
+ *
+ * @param status {{finished: boolean, failed: boolean, layer: string, total: number, done: number, errorMessage: string}}
+ */
+function updateStatus(status) {
+    finished = status.finished;
+    alertIfBigJob(status.total);
+    if(status.failed === true) {
+        clearInterval(loop);
+        $("#status").text("Failed :(");
+        alert(status.errorMessage);
+    } else if( finished === true && !alreadyRanDownload ) {
+        clearInterval(loop);
+        let status = $("#status");
+        status.text("Finished!");
+        $("#download").prop("disabled", false);
+        let percentDone = 100 * status.done / status.total;
+        $("#progressBar").find("> div").css("width", percentDone + "%");
+        download();
+        displayUrlBox();
+        status.text("Another?");
+    } else if(status.total !== 0 && status.total === status.done) {
+        $("#status").text("Zipping up files...");
+    } else if(status.total !== 0) {
+        $("#download").prop("disabled", true);
+        let progressBar =$("#progressBar").find("> div");
+        let percentDone = 100 * status.done / status.total;
+        progressBar.css("width", percentDone + "%");
+        $(  "#status").text( status.layer + ": " + Math.round(percentDone) + "%" );
+    }
+}
+
+
+let alreadyAlerted = false;
+const BIG_JOB_SIZE = 500;
+/**
+ * @param jobSize: number
+ */
+function alertIfBigJob(jobSize) {
+    if(jobSize > BIG_JOB_SIZE && !alreadyAlerted) {
+        alert("This is a big job size, server is going to make " + jobSize + " requests to complete the job " +
+        "might be time to go get some coffee :P");
+        alreadyAlerted = true;
+    }
+}
+
+
+
 function download() {
-    window.location.replace("/output?url=" + url);
+    if(!alreadyRanDownload) {
+        alreadyRanDownload = true;
+        window.location.replace("/output?url=" + url);
+    }
 }
