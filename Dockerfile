@@ -9,8 +9,5 @@ RUN echo 'http://dl-3.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositor
 RUN mkdir /app/
 ADD . /app/
 RUN cd /app/ && \
-  mvn clean install
-
+  mvn install
 EXPOSE 8000
-
-CMD java -jar  /app/target/NorthPine-1.0-SNAPSHOT-jar-with-dependencies.jar
