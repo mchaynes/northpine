@@ -29,6 +29,7 @@ public class Server {
     }
     port(getHerokuAssignedPort());
     staticFiles.location( "public" );
+
     before( handler::checkUrlParam );
     get("/scrape",  handler::handleScrapeStartRequest);
     get("/status", handler::handleGetProgress);
