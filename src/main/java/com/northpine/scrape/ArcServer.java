@@ -9,8 +9,11 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.northpine.scrape.ArcConstants.ARCGIS_REST_SERVICES;
+import static com.northpine.scrape.ArcConstants.NAME;
 import static com.northpine.scrape.HttpRequester.Q;
 
 public class ArcServer {
@@ -19,29 +22,39 @@ public class ArcServer {
 
   private static final Logger log = LoggerFactory.getLogger(ArcServer.class);
 
-  private final ConcurrentLinkedQueue<URI> endpoints;
+  private final ConcurrentLinkedQueue<ArcLayer> endpoints;
+
+  private volatile String lastCall;
+
+  private final AtomicInteger remaining;
 
 
   public ArcServer(URI uri) throws Exception {
+    log.info("Constructor called");
+    remaining = new AtomicInteger();
     endpoints = new ConcurrentLinkedQueue<>();
-    if(checkIfEndpoint(uri)) {
-      endpoints.add(uri);
-      return;
-    }
     if(isValidArcServer(uri)) {
       URI newUri = new URI(uri.toString() + ArcConstants.FORMAT_JSON);
       Q.submitRequest(newUri, (response) -> traverseServer(newUri, response), log::error);
+      Executors.newFixedThreadPool(1).submit(this::provideUpdates);
     }
   }
 
-  @SuppressWarnings("ResultOfMethodCallIgnored")
-  private boolean checkIfEndpoint(URI uri) {
-    String[] paths = uri.getPath().split("/");
+  public boolean isDone() {
+    return remaining.get() == 0;
+  }
+
+  private void provideUpdates() {
     try {
-      Integer.parseInt(paths[paths.length - 1]);
-      return true;
-    } catch (Exception e) {
-      return false;
+      Thread.sleep(1000);
+    } catch (InterruptedException e) {
+      log.error("Notifier died", e);
+    }
+    if(isDone()) {
+      log.info("Finished");
+    } else {
+      log.info(lastCall);
+      provideUpdates();
     }
   }
 
@@ -49,17 +62,17 @@ public class ArcServer {
     return uri.getPath().contains(ARCGIS_REST_SERVICES);
   }
 
-  public List<URI> getUris() {
-    return new ArrayList<>(endpoints);
-  }
 
-  private void traverseServer(URI prevUri, String response) {
-    if(response == null) {
+  private void traverseServer(URI prevUri, JSONObject obj) {
+    lastCall = prevUri.toString();
+    if(obj == null) {
       return;
     }
     try {
-
-      JSONObject obj = new JSONObject(response);
+      if(obj.has(NAME)) {
+        endpoints.add(new ArcLayer(prevUri.toString(), obj.getString(NAME)));
+        return;
+      }
       JSONArray folders = obj.optJSONArray(ArcConstants.FOLDERS);
       JSONArray services = obj.optJSONArray(ArcConstants.SERVICES);
       JSONArray layers = obj.optJSONArray(ArcConstants.LAYERS);
@@ -70,7 +83,8 @@ public class ArcServer {
           String newUrl = String.format("%s://%s%s/%s%s", prevUri.getScheme(),
               prevUri.getHost(), prevUri.getPath(), folderName, ArcConstants.FORMAT_JSON);
           URI newUri = new URI(newUrl);
-          Q.submitRequest(newUri, (body) -> traverseServer(newUri, body), log::error);
+          remaining.incrementAndGet();
+          Q.submitRequest(newUri, (body) -> traverseAndDecrement(newUri, body), log::error);
         }
       }
       if(services != null) {
@@ -84,21 +98,19 @@ public class ArcServer {
           }
           newUriStr += serviceName + "/" + type + ArcConstants.FORMAT_JSON;
           URI newUri = new URI(newUriStr);
-          Q.submitRequest(newUri, (body) -> traverseServer(newUri, body), log::error);
+          remaining.incrementAndGet();
+          Q.submitRequest(newUri, (body) -> traverseAndDecrement(newUri, body), log::error);
         }
       }
       if(layers != null) {
         for(int i = 0; i < layers.length(); i++) {
           JSONObject layer = layers.getJSONObject(i);
           int id = layer.getInt(ArcConstants.ID);
-
           String newUrlStr = String.format("%s://%s%s", prevUri.getScheme(), prevUri.getHost(), prevUri.getPath());
-
           URI newUri = new URI(newUrlStr + "/" + id + ArcConstants.FORMAT_JSON);
+          remaining.incrementAndGet();
+          Q.submitRequest(newUri, (body) ->  traverseAndDecrement(newUri, body), log::error);
 
-          Q.submitRequest(newUri, (body) -> traverseServer(newUri, body), log::error);
-
-          endpoints.add(newUri);
         }
       }
       if(subLayers != null) {
@@ -116,33 +128,24 @@ public class ArcServer {
           String newUrlStr = String.format("%s://%s%s/%s%s", prevUri.getScheme(),
               prevUri.getHost(), newPath.toString(), id, ArcConstants.FORMAT_JSON);
           URI newUri = new URI(newUrlStr);
-          Q.submitRequest(newUri, (body) -> traverseServer(newUri, body), log::error);
+          remaining.incrementAndGet();
+          Q.submitRequest(newUri, (body) -> traverseAndDecrement(newUri, body), log::error);
         }
       }
     } catch (Exception e) {
       log.error("Failed to traverse", e);
     }
-
   }
 
-
-
-
-
-  public static void main(String[] args) throws Exception {
-    long time = System.currentTimeMillis();
-    ArcServer server = new ArcServer(new URI("https://gis.cityoftacoma.org/arcgis/rest/services"));
-    Thread.sleep(2000);
-    while(Q.numRemaining() > 0) {
-      Thread.sleep(100);
-    }
-    Q.client.close();
-    server.getUris().stream()
-        .map(uri -> uri.getScheme() + "://" + uri.getHost() + uri.getPath())
-        .forEach(log::info);
-    long timeTook = System.currentTimeMillis() - time;
-    log.info(Long.toString(timeTook / server.getUris().size()) + "ms per layer");
+  private void traverseAndDecrement(URI uri, JSONObject body) {
+    remaining.decrementAndGet();
+    traverseServer(uri, body);
   }
+
+  public List<ArcLayer> getLayers() {
+    return new ArrayList<>(endpoints);
+  }
+
 
 
 

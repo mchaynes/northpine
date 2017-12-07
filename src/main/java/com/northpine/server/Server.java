@@ -35,6 +35,8 @@ public class Server {
     get("/status", handler::handleGetProgress);
     get("/output", handler::handleGetOutput);
     get("/nourl", (req, res) -> "need a url");
+    get("layers", handler::handleGetAllLayers);
+
   }
 
   private static int getHerokuAssignedPort() {

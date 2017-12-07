@@ -1,17 +1,17 @@
 package com.northpine.server;
 
+import com.northpine.scrape.ArcServer;
 import com.northpine.scrape.ScrapeJob;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spark.Request;
 import spark.Response;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.*;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +24,8 @@ public class ServerHandler {
 
   private static final String NO_JOB_FOUND_MESSAGE = "job not found";
   private static final Logger log = LoggerFactory.getLogger( ServerHandler.class );
+
+  private Map<String, ArcServer> servers = new HashMap<>();
 
   private Map<String, ScrapeJob> scrapeJobs = new HashMap<>();
 
@@ -119,6 +121,44 @@ public class ServerHandler {
       return "";
     }
   }
+
+
+  public String handleGetAllLayers(Request req, Response res) {
+    try {
+      JSONObject jog = new JSONObject();
+      String url = req.queryParams("url");
+      jog.put("url", url);
+      ArcServer server;
+      boolean alreadyStarted = servers.containsKey(url);
+      jog.put("alreadyStarted", alreadyStarted);
+      if(alreadyStarted) {
+        server = servers.get(url);
+      } else {
+        server = new ArcServer(new URI(url));
+        servers.put(url, server);
+      }
+      JSONArray layers = server.getLayers().stream().map(x -> {
+        JSONObject obj = new JSONObject();
+        obj.put("name", x.getName());
+        obj.put("url", x.getUrl());
+        return obj;
+      }).reduce(new JSONArray(), JSONArray::put, (arr1, arr2) -> {
+        for(int i =0;i<arr1.length();i++) arr2.put(arr1.getJSONObject(i));
+        return arr2;
+      });
+      res.type("application/json");
+      JSONObject obj = new JSONObject();
+      jog.put("size", server.getLayers().size());
+      obj.put("layers", layers);
+      obj.put("done", server.isDone() && alreadyStarted);
+      log.info(jog.toString());
+      return obj.toString();
+    } catch(Exception io) {
+      log.error("didn't work", io);
+      return "didn't work :(";
+    }
+  }
+
 
 
 }
