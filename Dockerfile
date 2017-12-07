@@ -10,5 +10,5 @@ RUN mkdir /app/
 ADD . /app/
 RUN cd /app/ && \
   mvn install
-EXPOSE $PORT
+EXPOSE 8000
 CMD java -jar /app/target/NorthPine-1.0-SNAPSHOT-jar-with-dependencies.jar
