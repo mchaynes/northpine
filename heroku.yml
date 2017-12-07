@@ -1,3 +1,5 @@
 build:
+  languages:
+    - java
   docker:
     web: Dockerfile
