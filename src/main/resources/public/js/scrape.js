@@ -33,7 +33,7 @@ function start() {
     event.preventDefault();
     url = $("#urlBox").val();
     $("#status").text("Getting layer details...");
-    $.ajax({
+    $.post({
         url: "/scrape",
         data : {
             url : url

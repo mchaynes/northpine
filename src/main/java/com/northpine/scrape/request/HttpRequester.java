@@ -1,4 +1,4 @@
-package com.northpine.scrape;
+package com.northpine.scrape.request;
 
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;

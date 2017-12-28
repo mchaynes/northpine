@@ -1,4 +1,4 @@
-package com.northpine.scrape;
+package com.northpine.scrape.arc;
 
 import java.util.List;
 

@@ -1,5 +1,7 @@
 package com.northpine.scrape;
 
+import com.northpine.scrape.ogr.GeoCollector;
+import com.northpine.scrape.ogr.OgrCollector;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -17,14 +19,11 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 /**
  * Scrapes ArcGIS REST Servers
@@ -33,11 +32,11 @@ public class ScrapeJob {
 
   private static final int CHUNK_SIZE = 200;
 
-  private static final String WEB_MERCATOR_PRJ = "PROJCS[\"WGS_1984_Web_Mercator_Auxiliary_Sphere\",GEOGCS[\"GCS_WGS_1984\",DATUM[\"D_WGS_1984\",SPHEROID[\"WGS_1984\",6378137.0,298.257223563]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Mercator_Auxiliary_Sphere\"],PARAMETER[\"False_Easting\",0.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",0.0],PARAMETER[\"Standard_Parallel_1\",0.0],PARAMETER[\"Auxiliary_Sphere_Type\",0.0],UNIT[\"Meter\",1.0]]";
+
 
   private static final String OUTPUT_FOLDER = "output";
 
-  private static final List<String> SHP_FILE_EXTENSIONS = Arrays.asList(".shp", ".prj", ".shx", ".dbf");
+
 
   private static final Logger log = LoggerFactory.getLogger( ScrapeJob.class );
 
@@ -66,6 +65,8 @@ public class ScrapeJob {
   private String failMessage;
 
   private Queue<String> deleteQueue;
+
+  private File zipFile;
 
 
   /**
@@ -96,6 +97,7 @@ public class ScrapeJob {
         .setDefaultRequestConfig(config)
         .build();
     httpClient.start();
+    OgrCollector collector = new GeoCollector(outputFileBase);
     List<String> idStrs = buildIdStrs( arr );
     CountDownLatch latch = new CountDownLatch( idStrs.size() );
     idStrs.stream()
@@ -119,13 +121,10 @@ public class ScrapeJob {
                   failed.set( true );
                 }
                 JSONObject jsonObject = new JSONObject( body );
-                if(!jsonObject.isNull( "error" )) {
-//                  failJob( "json response contains error: " + jsonObject.getString( "error" ), null );
-                }
                 CompletableFuture.supplyAsync( () -> writeJSON( jsonObject ), executor )
-                  .thenAccept( str -> addToShp( str ) )
-//                  .exceptionally( (ex) -> failJob( ex.getMessage(), ex ) )
-                  .thenRun( latch::countDown );
+                  .thenAccept( collector::addJsonToPool )
+                  .thenRun( latch::countDown )
+                  .thenRun(done::incrementAndGet);
               }
 
               @Override
@@ -148,7 +147,7 @@ public class ScrapeJob {
     } catch ( InterruptedException e ) {
       log.error("Couldn't be awaited", e);
     }
-    zipUpShp();
+    zipFile = collector.zipUpPool();
     isDone = true;
     log.info("Zipped '" + outputZip + "'");
     CompletableFuture.runAsync(this::deleteJsonFiles);
@@ -165,7 +164,6 @@ public class ScrapeJob {
 
   public void stopJob() {
     executor.shutdownNow();
-
   }
 
   public String getName() {
@@ -196,8 +194,9 @@ public class ScrapeJob {
   private String getLayerName() {
     String jsonLayerDeetsUrlStr = layerUrl + "?f=json";
     URL jsonLayerDeetsUrl = getURL( jsonLayerDeetsUrlStr );
-
-    return getJsonResponse( jsonLayerDeetsUrl ).orElseThrow( RuntimeException::new ).getString( "name" );
+    return getJsonResponse( jsonLayerDeetsUrl )
+        .orElseThrow( RuntimeException::new )
+        .getString( "name" );
   }
 
   private void deleteJsonFiles() {
@@ -213,38 +212,9 @@ public class ScrapeJob {
     log.info("Deleted " + size + " files");
   }
 
-  private void zipUpShp() {
-    try (ZipOutputStream zOut = new ZipOutputStream( new FileOutputStream( new File( outputZip ) ) )) {
-      SHP_FILE_EXTENSIONS.forEach( ext -> {
-        try {
-          Path pathToShp = Paths.get(outputFileBase + ext);
-          ZipEntry entry = new ZipEntry( layerName + ext );
-          zOut.putNextEntry( entry );
-          if( Files.exists( pathToShp ) ) {
-            Files.copy(pathToShp, zOut);
-            Files.deleteIfExists( pathToShp );
-          }
-          else if (".prj".equals( ext )) {
-            log.warn("writing default web_mercator prj");
-            zOut.write( WEB_MERCATOR_PRJ.getBytes() );
-          }
-          else {
-            failJob( "ogr2ogr2 failed somewhere" );
-          }
-          zOut.closeEntry();
-        } catch ( IOException e ) {
-          log.error("Couldn't zip '" + outputFileBase + ext + "'", e);
-          failJob("Couldn't zip up file");
-        }
-      } );
-    } catch ( IOException e ) {
-      log.error("Couldn't open zip '" + outputZip + "'", e);
-    }
-  }
-
   public String getOutput() {
     if ( isJobDone() ) {
-      return outputFileBase + ".zip";
+      return zipFile.getAbsolutePath();
     } else {
       return null;
     }
@@ -274,7 +244,11 @@ public class ScrapeJob {
       while ( scanner.hasNext() ) {
         sb.append( scanner.next() );
       }
-      return Optional.of(new JSONObject( sb.toString() ));
+      JSONObject response = new JSONObject( sb.toString() );
+      if(response.has("error")) {
+        failJob("Json response contains error");
+      }
+      return Optional.of(response);
     } catch ( IOException e ) {
       log.error("connection error", e);
       failJob( "reading body of response failed" );

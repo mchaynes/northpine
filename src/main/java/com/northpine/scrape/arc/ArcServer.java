@@ -1,4 +1,4 @@
-package com.northpine.scrape;
+package com.northpine.scrape.arc;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -12,9 +12,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.northpine.scrape.ArcConstants.ARCGIS_REST_SERVICES;
-import static com.northpine.scrape.ArcConstants.NAME;
-import static com.northpine.scrape.HttpRequester.Q;
+import static com.northpine.scrape.arc.ArcConstants.ARCGIS_REST_SERVICES;
+import static com.northpine.scrape.arc.ArcConstants.NAME;
+import static com.northpine.scrape.request.HttpRequester.Q;
 
 public class ArcServer {
 
