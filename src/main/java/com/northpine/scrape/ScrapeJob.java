@@ -2,12 +2,6 @@ package com.northpine.scrape;
 
 import com.northpine.scrape.ogr.GeoCollector;
 import com.northpine.scrape.ogr.OgrCollector;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.concurrent.FutureCallback;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
-import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,9 +15,15 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+import static com.northpine.scrape.request.HttpRequester.Q;
 
 /**
  * Scrapes ArcGIS REST Servers
@@ -92,67 +92,30 @@ public class ScrapeJob {
     URL queryUrl = getURL( queryUrlStr + "?where=1=1&returnIdsOnly=true&f=json&outSR=3857" );
     JSONObject idsJson = getJsonResponse( queryUrl ).orElseThrow( RuntimeException::new );
     JSONArray arr = idsJson.getJSONArray( "objectIds" );
-    RequestConfig config = RequestConfig.DEFAULT;
-    CloseableHttpAsyncClient httpClient = HttpAsyncClients.custom()
-        .setDefaultRequestConfig(config)
-        .build();
-    httpClient.start();
     OgrCollector collector = new GeoCollector(outputFileBase);
+
     List<String> idStrs = buildIdStrs( arr );
-    CountDownLatch latch = new CountDownLatch( idStrs.size() );
-    idStrs.stream()
+    List<CompletableFuture<Void>> futures = idStrs.stream()
         .map( idListStr -> "OBJECTID%20in%20(" + idListStr + ")" )
         .map( queryStr -> queryUrlStr + "?f=json&outFields=*&where=" + queryStr )
-        .map( HttpGet::new )
-        .forEach( request ->
-            httpClient.execute(request, new FutureCallback<HttpResponse>() {
+        .map((query) -> Q.submitRequest(query)
+            .thenApply( this::writeJSON )
+            .thenAccept( collector::addJsonToPool )
+            .thenRun( done::incrementAndGet )
+        )
+        .collect(Collectors.toList());
 
-              @Override
-              public void completed(final HttpResponse response) {
-                String body = "";
-                try(Scanner scanner = new Scanner(response.getEntity().getContent())) {
-                  StringBuilder sb = new StringBuilder();
-                  while(scanner.hasNext()) {
-                    sb.append( scanner.next() );
-                  }
-                  body = sb.toString();
-                } catch ( IOException io ) {
-                  log.error("couldn't get body of response", io);
-                  failed.set( true );
-                }
-                JSONObject jsonObject = new JSONObject( body );
-                CompletableFuture.supplyAsync( () -> writeJSON( jsonObject ), executor )
-                  .thenAccept( collector::addJsonToPool )
-                  .thenRun( latch::countDown )
-                  .thenRun(done::incrementAndGet);
-              }
+    CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).join();
 
-              @Override
-              public void failed(final Exception ex) {
-                latch.countDown();
-                log.error(request.getRequestLine() + "->" + ex);
-              }
-
-              @Override
-              public void cancelled() {
-                latch.countDown();
-                log.error(request.getRequestLine() + " cancelled");
-              }
-
-            })
-        );
-    try {
-      latch.await();
-      log.info("Done waiting for responses");
-    } catch ( InterruptedException e ) {
-      log.error("Couldn't be awaited", e);
-    }
     zipFile = collector.zipUpPool();
     isDone = true;
     log.info("Zipped '" + outputZip + "'");
     CompletableFuture.runAsync(this::deleteJsonFiles);
     log.info("Done with job.");
   }
+
+
+
 
   public int getNumDone() {
     if(done != null) {
@@ -260,24 +223,12 @@ public class ScrapeJob {
     }
   }
 
-  private void addToShp(String jsonFile) {
-    try {
-      ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", "ESRI Shapefile", "-append", outputFileBase + ".shp", jsonFile );
-      Process p = builder.start();
-      p.waitFor();
-      deleteQueue.add(jsonFile);
-      done.incrementAndGet();
-    } catch ( IOException | InterruptedException e ) {
-      log.error("ogr2ogr failed", e);
-      failJob( "ogr2ogr failed" );
-    }
-  }
-
   private String writeJSON(JSONObject obj) {
     // e.g. 'output/wetlands1.json'
     String outFile = outputFileBase + current.incrementAndGet() + ".json";
+    log.info(outFile);
     try ( BufferedWriter br = new BufferedWriter( new FileWriter( new File( outFile ) ) ) ) {
-      br.write( obj.toString() );
+      obj.write(br);
     } catch ( IOException e ) {
       log.error("Couldn't write '" + outFile + "'", e);
       failJob( "Failed to write a response.. our fault, try again?" );

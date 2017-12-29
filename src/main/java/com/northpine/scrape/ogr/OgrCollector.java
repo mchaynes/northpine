@@ -26,7 +26,7 @@ public abstract class OgrCollector {
     this.extension = extension;
   }
 
-  synchronized void addJsonToPool(String file) {
+  public synchronized void addJsonToPool(String file) {
     ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", ""+ ogrFormat + "", "-append", poolBase + extension, file );
     try {
       Process p;
@@ -48,7 +48,5 @@ public abstract class OgrCollector {
     }
   }
 
-  abstract File zipUpPool();
-
-
+  public abstract File zipUpPool();
 }

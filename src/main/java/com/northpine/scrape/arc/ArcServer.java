@@ -35,7 +35,9 @@ public class ArcServer {
     endpoints = new ConcurrentLinkedQueue<>();
     if(isValidArcServer(uri)) {
       URI newUri = new URI(uri.toString() + ArcConstants.FORMAT_JSON);
-      Q.submitRequest(newUri, (response) -> traverseServer(newUri, response), log::error);
+      Q.submitRequest(newUri.toString())
+          .thenAccept((response) -> traverseServer(newUri, response));
+
       Executors.newFixedThreadPool(1).submit(this::provideUpdates);
     }
   }
@@ -84,7 +86,8 @@ public class ArcServer {
               prevUri.getHost(), prevUri.getPath(), folderName, ArcConstants.FORMAT_JSON);
           URI newUri = new URI(newUrl);
           remaining.incrementAndGet();
-          Q.submitRequest(newUri, (body) -> traverseAndDecrement(newUri, body), log::error);
+          Q.submitRequest(newUri.toString())
+              .thenAccept((body) -> traverseAndDecrement(newUri, body));
         }
       }
       if(services != null) {
@@ -99,7 +102,8 @@ public class ArcServer {
           newUriStr += serviceName + "/" + type + ArcConstants.FORMAT_JSON;
           URI newUri = new URI(newUriStr);
           remaining.incrementAndGet();
-          Q.submitRequest(newUri, (body) -> traverseAndDecrement(newUri, body), log::error);
+          Q.submitRequest(newUri.toString())
+              .thenAccept( (body) -> traverseAndDecrement(newUri, body));
         }
       }
       if(layers != null) {
@@ -109,7 +113,8 @@ public class ArcServer {
           String newUrlStr = String.format("%s://%s%s", prevUri.getScheme(), prevUri.getHost(), prevUri.getPath());
           URI newUri = new URI(newUrlStr + "/" + id + ArcConstants.FORMAT_JSON);
           remaining.incrementAndGet();
-          Q.submitRequest(newUri, (body) ->  traverseAndDecrement(newUri, body), log::error);
+          Q.submitRequest(newUri.toString())
+              .thenAccept( (body) ->  traverseAndDecrement(newUri, body));
 
         }
       }
@@ -129,7 +134,8 @@ public class ArcServer {
               prevUri.getHost(), newPath.toString(), id, ArcConstants.FORMAT_JSON);
           URI newUri = new URI(newUrlStr);
           remaining.incrementAndGet();
-          Q.submitRequest(newUri, (body) -> traverseAndDecrement(newUri, body), log::error);
+          Q.submitRequest(newUri.toString())
+              .thenAccept((body) -> traverseAndDecrement(newUri, body));
         }
       }
     } catch (Exception e) {

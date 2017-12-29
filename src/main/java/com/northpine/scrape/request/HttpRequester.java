@@ -9,8 +9,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 
 public enum HttpRequester {
 
@@ -23,39 +22,30 @@ public enum HttpRequester {
 
   }
 
-
-  public void submitRequest(URI uri, Consumer<JSONObject> onSuccess, Consumer<String> onFailure) {
-    Unirest.get(uri.toString())
-        .asJsonAsync(new HttpCallback(onSuccess, onFailure));
+  public CompletableFuture<JSONObject> submitRequest(String uri) {
+    HttpCallback callback = new HttpCallback();
+    Unirest.get(uri)
+        .asJsonAsync(callback);
+    return callback;
   }
 
 
-  private class HttpCallback implements Callback<JsonNode> {
-
-    private Consumer<JSONObject> onSuccess;
-
-    private Consumer<String> onFailure;
-
-    HttpCallback(Consumer<JSONObject> onSuccess, Consumer<String> onFailure) {
-      this.onSuccess = onSuccess;
-      this.onFailure = onFailure;
-    }
-
+  private class HttpCallback extends CompletableFuture<JSONObject> implements Callback<JsonNode> {
 
     @Override
     public void completed(HttpResponse<JsonNode> httpResponse) {
-      onSuccess.accept(httpResponse.getBody().getObject());
+      complete(httpResponse.getBody().getObject());
     }
 
     @Override
     public void failed(UnirestException e) {
       log.error("failed, and here's how", e);
-      onFailure.accept(e.getMessage());
+      completeExceptionally(e);
     }
 
     @Override
     public void cancelled() {
-      onFailure.accept("cancelled");
+      completeExceptionally(new UnirestException("cancelled"));
     }
   }
 

@@ -15,12 +15,12 @@ public class GeoCollector extends OgrCollector {
 
   private static final String EXTENSION = ".gpkg";
 
-  protected GeoCollector(String poolFile) {
+  public GeoCollector(String poolFile) {
     super(poolFile, GEO_PACKAGE, EXTENSION);
   }
 
   @Override
-  File zipUpPool() {
+  public File zipUpPool() {
     File zip = new File(poolBase + ".zip");
     try(ZipOutputStream zOut = new ZipOutputStream(new FileOutputStream(zip))) {
       String packageFile = poolBase + EXTENSION;
