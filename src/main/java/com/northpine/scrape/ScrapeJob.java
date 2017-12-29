@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.northpine.scrape.JobManager.MAN;
 import static com.northpine.scrape.request.HttpRequester.Q;
 import static java.util.concurrent.CompletableFuture.runAsync;
 
@@ -104,6 +105,12 @@ public class ScrapeJob {
             .thenApply( this::writeJSON )
             .thenAccept( collector::addJsonToPool )
             .thenRun( done::incrementAndGet )
+            .whenComplete((_null, ex) -> {
+              if(ex != null) {
+                log.error("Killing job: " + layerUrl);
+                MAN.killJob(layerUrl);
+              }
+            })
         )
         .collect(Collectors.toList());
 

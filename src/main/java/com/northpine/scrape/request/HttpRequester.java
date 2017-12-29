@@ -21,7 +21,7 @@ public enum HttpRequester {
   HttpRequester() {
     Unirest.setConcurrency(1000, 100);
     //Set super long timeout because we're
-    Unirest.setTimeouts(1000000, 1000000);
+    Unirest.setTimeouts(100000000, 100000000);
 
   }
 
