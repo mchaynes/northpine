@@ -9,6 +9,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public enum HttpRequester {
@@ -27,6 +28,18 @@ public enum HttpRequester {
     Unirest.get(uri)
         .asJsonAsync(callback);
     return callback;
+  }
+
+  public Optional<JSONObject> submitSyncRequest(String uri) {
+    try {
+      return Optional.of(Unirest.get(uri)
+          .asJson()
+          .getBody()
+          .getObject());
+    } catch(UnirestException e) {
+      log.error("failed to get: " + uri);
+      return Optional.empty();
+    }
   }
 
 

@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.northpine.scrape.request.HttpRequester.Q;
+import static java.util.concurrent.CompletableFuture.runAsync;
 
 /**
  * Scrapes ArcGIS REST Servers
@@ -90,12 +91,13 @@ public class ScrapeJob {
     done = new AtomicInteger();
     isDone = false;
     URL queryUrl = getURL( queryUrlStr + "?where=1=1&returnIdsOnly=true&f=json&outSR=3857" );
-    JSONObject idsJson = getJsonResponse( queryUrl ).orElseThrow( RuntimeException::new );
+    JSONObject idsJson = Q.submitSyncRequest(queryUrl.toString())
+        .orElseThrow(RuntimeException::new);
     JSONArray arr = idsJson.getJSONArray( "objectIds" );
     OgrCollector collector = new GeoCollector(outputFileBase);
 
-    List<String> idStrs = buildIdStrs( arr );
-    List<CompletableFuture<Void>> futures = idStrs.stream()
+
+    List<CompletableFuture<Void>> futures = buildIdStrs( arr ).stream()
         .map( idListStr -> "OBJECTID%20in%20(" + idListStr + ")" )
         .map( queryStr -> queryUrlStr + "?f=json&outFields=*&where=" + queryStr )
         .map((query) -> Q.submitRequest(query)
@@ -110,7 +112,7 @@ public class ScrapeJob {
     zipFile = collector.zipUpPool();
     isDone = true;
     log.info("Zipped '" + outputZip + "'");
-    CompletableFuture.runAsync(this::deleteJsonFiles);
+    runAsync(this::deleteJsonFiles);
     log.info("Done with job.");
   }
 
@@ -155,9 +157,10 @@ public class ScrapeJob {
   }
 
   private String getLayerName() {
-    String jsonLayerDeetsUrlStr = layerUrl + "?f=json";
-    URL jsonLayerDeetsUrl = getURL( jsonLayerDeetsUrlStr );
-    return getJsonResponse( jsonLayerDeetsUrl )
+
+    String jsonDetailsUrl = layerUrl + "?f=json";
+
+    return Q.submitSyncRequest(jsonDetailsUrl)
         .orElseThrow( RuntimeException::new )
         .getString( "name" );
   }
