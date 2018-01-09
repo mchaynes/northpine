@@ -9,12 +9,11 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.northpine.scrape.arc.ArcConstants.ARCGIS_REST_SERVICES;
 import static com.northpine.scrape.arc.ArcConstants.NAME;
 import static com.northpine.scrape.request.HttpRequester.Q;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
 public class ArcServer {
 
@@ -33,13 +32,13 @@ public class ArcServer {
     log.info("Constructor called");
     remaining = new AtomicInteger();
     endpoints = new ConcurrentLinkedQueue<>();
-    if(isValidArcServer(uri)) {
+
       URI newUri = new URI(uri.toString() + ArcConstants.FORMAT_JSON);
       Q.submitRequest(newUri.toString())
           .thenAccept((response) -> traverseServer(newUri, response));
 
-      Executors.newFixedThreadPool(1).submit(this::provideUpdates);
-    }
+      newFixedThreadPool(1).submit(this::provideUpdates);
+
   }
 
   public boolean isDone() {
@@ -58,10 +57,6 @@ public class ArcServer {
       log.info(lastCall);
       provideUpdates();
     }
-  }
-
-  private boolean isValidArcServer(URI uri) {
-    return uri.getPath().contains(ARCGIS_REST_SERVICES);
   }
 
 
@@ -115,7 +110,6 @@ public class ArcServer {
           remaining.incrementAndGet();
           Q.submitRequest(newUri.toString())
               .thenAccept( (body) ->  traverseAndDecrement(newUri, body));
-
         }
       }
       if(subLayers != null) {

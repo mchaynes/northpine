@@ -19,7 +19,7 @@ public enum HttpRequester {
   private static final Logger log = LoggerFactory.getLogger(HttpRequester.class);
 
   HttpRequester() {
-    Unirest.setConcurrency(1000, 100);
+    Unirest.setConcurrency(100, 5);
     //Set super long timeout because we're
     Unirest.setTimeouts(100000000, 100000000);
 
