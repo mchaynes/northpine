@@ -1,8 +1,8 @@
 build:
   pre:
-    - sudo add-apt-repository ppa:ubuntugis/ppa
-    - sudo apt update
-    - sudo apt install gdal-bin
+    - add-apt-repository ppa:ubuntugis/ppa
+    - apt update
+    - apt install gdal-bin
   languages:
     - java
 run:
