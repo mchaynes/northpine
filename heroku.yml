@@ -1,0 +1,8 @@
+build:
+  pre:
+    - sudo add-apt-repository ppa:ubuntugis/ppa
+    - sudo apt update
+  languages:
+    - java
+run:
+  web: java -jar target/NorthPine-1.0-SNAPSHOT-jar-with-dependencies.jar
