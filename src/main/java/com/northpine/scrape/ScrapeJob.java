@@ -3,18 +3,21 @@ package com.northpine.scrape;
 import com.northpine.scrape.ogr.GeoCollector;
 import com.northpine.scrape.ogr.OgrCollector;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.net.HttpURLConnection;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
@@ -200,36 +203,6 @@ public class ScrapeJob {
       throw new IllegalArgumentException( "Query str is invalid '" + str + "'" );
     } catch ( Exception e ) {
       throw new IllegalArgumentException( "Just kill me now" );
-    }
-  }
-
-  private Optional<JSONObject> getJsonResponse(URL queryUrl) {
-    HttpURLConnection connection;
-    try {
-      connection = ( HttpURLConnection ) queryUrl.openConnection();
-      connection.setRequestMethod( "GET" );
-      connection.connect();
-      InputStream inputStream = connection.getInputStream();
-      Reader reader = new InputStreamReader( inputStream );
-      Scanner scanner = new Scanner( reader );
-
-      StringBuilder sb = new StringBuilder();
-      while ( scanner.hasNext() ) {
-        sb.append( scanner.next() );
-      }
-      JSONObject response = new JSONObject( sb.toString() );
-      if(response.has("error")) {
-        failJob("Json response contains error");
-      }
-      return Optional.of(response);
-    } catch ( IOException e ) {
-      log.error("connection error", e);
-      failJob( "reading body of response failed" );
-      return Optional.empty();
-    } catch (JSONException exception) {
-      log.error("layer sent invalid json response, probably not a valid layer", exception);
-      failJob( "invalid layer response, is this an arcgis server?" );
-      return Optional.empty();
     }
   }
 
