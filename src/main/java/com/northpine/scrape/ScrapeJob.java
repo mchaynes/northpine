@@ -1,5 +1,8 @@
 package com.northpine.scrape;
 
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 import com.northpine.scrape.ogr.GeoCollector;
 import com.northpine.scrape.ogr.OgrCollector;
 import org.json.JSONArray;
@@ -7,16 +10,16 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -28,6 +31,7 @@ import java.util.stream.Collectors;
 
 import static com.northpine.scrape.JobManager.MAN;
 import static com.northpine.scrape.request.HttpRequester.Q;
+import static java.lang.String.format;
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 /**
@@ -69,8 +73,6 @@ public class ScrapeJob {
 
   private String failMessage;
 
-  private Queue<String> deleteQueue;
-
   private File zipFile;
 
 
@@ -87,7 +89,6 @@ public class ScrapeJob {
     this.layerName = getLayerName();
     this.outputFileBase =  OUTPUT_FOLDER + "/" + layerName;
     this.outputZip =  OUTPUT_FOLDER + "/" + layerName + ".zip";
-    this.deleteQueue = new ConcurrentLinkedDeque<>();
   }
 
   public void startScraping() {
@@ -101,28 +102,43 @@ public class ScrapeJob {
     OgrCollector collector = new GeoCollector(outputFileBase);
 
 
-    List<CompletableFuture<Void>> futures = buildIdStrs( arr ).stream()
-        .map( idListStr -> "OBJECTID%20in%20(" + idListStr + ")" )
-        .map( queryStr -> queryUrlStr + "?f=json&outFields=*&where=" + queryStr )
-        .map((query) -> Q.submitRequest(query)
-            .thenApply( this::writeJSON )
-            .thenAccept( collector::addJsonToPool )
-            .thenRun( done::incrementAndGet )
-            .whenComplete((_null, ex) -> {
-              if(ex != null) {
-                log.error("Killing job: " + layerUrl);
-                MAN.killJob(layerUrl);
-              }
-            })
-        )
-        .collect(Collectors.toList());
+    buildIdStrs( arr ).stream()
+        .map( idListStr -> "OBJECTID in (" + idListStr + ")" )
+        .forEach(whereClause -> {
+          try {
+            String file = outputFileBase + current.incrementAndGet() + ".json";
+            var request = Unirest.get(queryUrlStr)
+                .queryString("where", whereClause)
+                .queryString("outFields", "*")
+                .queryString("f", "json")
+                .asBinary();
+            if(request.getStatus() == 200) {
+              runAsync(() -> writeToFile(request.getRawBody(), file))
+                  .thenApply((_v) -> collector.addJsonToPool(file))
+                  .thenAccept((b) -> {
+                    if(b) {
+                      var numDone = done.incrementAndGet();
+                      var numTotal = total.get();
+                      if(numDone % (numTotal / 10) == 0) {
+                        log.info(format("%d/%d requests done for %s", numDone, numTotal, layerUrl));
+                      }
+                    } else {
+                      failJob("Couldn't run ogr2ogr");
+                    }
+                  });
 
-    CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).join();
+            } else {
+              throw new RuntimeException(request.getStatusText());
+            }
+          } catch (UnirestException httpException) {
+            log.error("Couldn't connect to server", httpException);
+            failJob("Connecting to server for query failed");
+          }
+        });
 
     zipFile = collector.zipUpPool();
     isDone = true;
     log.info("Zipped '" + outputZip + "'");
-    runAsync(this::deleteJsonFiles);
     log.info("Done with job.");
   }
 
@@ -165,6 +181,14 @@ public class ScrapeJob {
     this.failMessage = failMessage;
     failed.set( true );
   }
+  private void writeToFile(InputStream in, String file) {
+    try {
+      Files.copy(in, Paths.get(file), StandardCopyOption.REPLACE_EXISTING);
+    } catch(IOException io) {
+      log.error("Failed to write file" + file, io);
+      failJob("Failed to write file");
+    }
+  }
 
   private String getLayerName() {
 
@@ -173,19 +197,6 @@ public class ScrapeJob {
     return Q.submitSyncRequest(jsonDetailsUrl)
         .orElseThrow( RuntimeException::new )
         .getString( "name" );
-  }
-
-  private void deleteJsonFiles() {
-    int size = deleteQueue.size();
-    while(!deleteQueue.isEmpty()) {
-      String fileToDelete = deleteQueue.poll();
-      try {
-        Files.delete(Paths.get(fileToDelete));
-      } catch (IOException e) {
-        log.error("Couldn't delete '" + fileToDelete + "'", e);
-      }
-    }
-    log.info("Deleted " + size + " files");
   }
 
   public String getOutput() {
@@ -204,19 +215,6 @@ public class ScrapeJob {
     } catch ( Exception e ) {
       throw new IllegalArgumentException( "Just kill me now" );
     }
-  }
-
-  private String writeJSON(JSONObject obj) {
-    // e.g. 'output/wetlands1.json'
-    String outFile = outputFileBase + current.incrementAndGet() + ".json";
-    log.info(outFile);
-    try ( BufferedWriter br = new BufferedWriter( new FileWriter( new File( outFile ) ) ) ) {
-      obj.write(br);
-    } catch ( IOException e ) {
-      log.error("Couldn't write '" + outFile + "'", e);
-      failJob( "Failed to write a response.. our fault, try again?" );
-    }
-    return outFile;
   }
 
 

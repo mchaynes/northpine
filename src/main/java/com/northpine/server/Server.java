@@ -44,7 +44,7 @@ public class Server {
     if (processBuilder.environment().get("PORT") != null) {
       return Integer.parseInt(processBuilder.environment().get("PORT"));
     }
-    return 80; //return default port if PORT isn't set (i.e. on localhost)
+    return 8000; //return default port if PORT isn't set (i.e. on localhost)
   }
 
   private static void checkOgrInstall() {

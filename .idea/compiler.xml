@@ -6,13 +6,11 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="ArcScrape" />
         <module name="NorthPine" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="1.8">
-      <module name="ArcScrape" target="1.8" />
-      <module name="NorthPine" target="1.8" />
+    <bytecodeTargetLevel>
+      <module name="NorthPine" target="1.10" />
     </bytecodeTargetLevel>
   </component>
 </project>
