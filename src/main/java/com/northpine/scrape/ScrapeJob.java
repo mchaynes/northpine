@@ -107,14 +107,20 @@ public class ScrapeJob {
         .forEach(whereClause -> {
           try {
             String file = outputFileBase + current.incrementAndGet() + ".json";
+            var before = System.currentTimeMillis();
             var request = Unirest.get(queryUrlStr)
                 .queryString("where", whereClause)
                 .queryString("outFields", "*")
                 .queryString("f", "json")
                 .asBinary();
+            log.info(String.format("Request took %dms", System.currentTimeMillis() - before));
             if(request.getStatus() == 200) {
+              before = System.currentTimeMillis();
               writeToFile(request.getRawBody(), file);
+              log.info(String.format("Writing data to file took %dms", System.currentTimeMillis() - before));
+              before = System.currentTimeMillis();
               var wasSuccessful = collector.addJsonToPool(file);
+              log.info(String.format("Running ogr2ogr took %dms", System.currentTimeMillis() - before));
               if(wasSuccessful) {
                 var numDone = done.incrementAndGet();
                 var numTotal = total.get();
