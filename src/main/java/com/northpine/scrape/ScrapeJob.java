@@ -113,20 +113,17 @@ public class ScrapeJob {
                 .queryString("f", "json")
                 .asBinary();
             if(request.getStatus() == 200) {
-              runAsync(() -> writeToFile(request.getRawBody(), file))
-                  .thenApply((_v) -> collector.addJsonToPool(file))
-                  .thenAccept((b) -> {
-                    if(b) {
-                      var numDone = done.incrementAndGet();
-                      var numTotal = total.get();
-                      if(numDone % (numTotal / 10) == 0) {
-                        log.info(format("%d/%d requests done for %s", numDone, numTotal, layerUrl));
-                      }
-                    } else {
-                      failJob("Couldn't run ogr2ogr");
-                    }
-                  });
-
+              writeToFile(request.getRawBody(), file);
+              var wasSuccessful = collector.addJsonToPool(file);
+              if(wasSuccessful) {
+                var numDone = done.incrementAndGet();
+                var numTotal = total.get();
+                if(numDone % (numTotal / 10) == 0) {
+                  log.info(format("%d/%d requests done for %s", numDone, numTotal, layerUrl));
+                }
+              } else {
+                failJob("Couldn't run ogr2ogr");
+              }
             } else {
               throw new RuntimeException(request.getStatusText());
             }
