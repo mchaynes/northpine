@@ -124,10 +124,11 @@ public class ScrapeJob {
               } else {
                 failJob("Couldn't run ogr2ogr");
               }
+              Thread.sleep(100);
             } else {
               throw new RuntimeException(request.getStatusText());
             }
-          } catch (UnirestException httpException) {
+          } catch (UnirestException | InterruptedException httpException) {
             log.error("Couldn't connect to server", httpException);
             failJob("Connecting to server for query failed");
           }
