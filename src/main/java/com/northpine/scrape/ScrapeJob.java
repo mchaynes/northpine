@@ -119,13 +119,10 @@ public class ScrapeJob {
               writeToFile(request.getRawBody(), file);
               files.add(file);
               log.info(String.format("Writing data to file took %dms", System.currentTimeMillis() - before));
-              before = System.currentTimeMillis();
               var numDone = done.incrementAndGet();
               var numTotal = total.get();
               if(numDone % (numTotal / 10) == 0) {
-              log.info(format("%d/%d requests done for %s", numDone, numTotal, layerUrl));
-              } else {
-                failJob("Couldn't run ogr2ogr");
+                log.info(format("%d/%d requests done for %s", numDone, numTotal, layerUrl));
               }
               Thread.sleep(100);
             } else {
