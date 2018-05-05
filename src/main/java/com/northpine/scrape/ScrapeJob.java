@@ -117,6 +117,7 @@ public class ScrapeJob {
             if(request.getStatus() == 200) {
               before = System.currentTimeMillis();
               writeToFile(request.getRawBody(), file);
+              files.add(file);
               log.info(String.format("Writing data to file took %dms", System.currentTimeMillis() - before));
               before = System.currentTimeMillis();
               var numDone = done.incrementAndGet();
