@@ -17,10 +17,7 @@ import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
@@ -48,6 +45,8 @@ public class ScrapeJob {
 
 
   private static final Logger log = LoggerFactory.getLogger( ScrapeJob.class );
+
+  private final Queue<String> files;
 
   private final ExecutorService executor;
 
@@ -89,6 +88,7 @@ public class ScrapeJob {
     this.layerName = getLayerName();
     this.outputFileBase =  OUTPUT_FOLDER + "/" + layerName;
     this.outputZip =  OUTPUT_FOLDER + "/" + layerName + ".zip";
+    files = new PriorityQueue<>();
   }
 
   public void startScraping() {
@@ -119,14 +119,10 @@ public class ScrapeJob {
               writeToFile(request.getRawBody(), file);
               log.info(String.format("Writing data to file took %dms", System.currentTimeMillis() - before));
               before = System.currentTimeMillis();
-              var wasSuccessful = collector.addJsonToPool(file);
-              log.info(String.format("Running ogr2ogr took %dms", System.currentTimeMillis() - before));
-              if(wasSuccessful) {
-                var numDone = done.incrementAndGet();
-                var numTotal = total.get();
-                if(numDone % (numTotal / 10) == 0) {
-                  log.info(format("%d/%d requests done for %s", numDone, numTotal, layerUrl));
-                }
+              var numDone = done.incrementAndGet();
+              var numTotal = total.get();
+              if(numDone % (numTotal / 10) == 0) {
+              log.info(format("%d/%d requests done for %s", numDone, numTotal, layerUrl));
               } else {
                 failJob("Couldn't run ogr2ogr");
               }
@@ -139,7 +135,7 @@ public class ScrapeJob {
             failJob("Connecting to server for query failed");
           }
         });
-
+    files.forEach(collector::addJsonToPool);
     zipFile = collector.zipUpPool();
     isDone = true;
     log.info("Zipped '" + outputZip + "'");
