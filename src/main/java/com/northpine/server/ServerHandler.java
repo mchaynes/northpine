@@ -1,5 +1,6 @@
 package com.northpine.server;
 
+import com.northpine.log.DbLog;
 import com.northpine.scrape.arc.ArcServer;
 import com.northpine.scrape.ScrapeJob;
 import org.json.JSONArray;
@@ -54,6 +55,7 @@ public class ServerHandler {
     message.accumulate("ip", req.ip());
     message.accumulate("url", url);
     log.info(message.toString());
+    DbLog.get().startRequest(req.ip(), url);
     return MAN.submitJob(url).getName();
   }
 
@@ -107,9 +109,9 @@ public class ServerHandler {
               bOut.write(buffer,0,len);
             }
           }
-
+          DbLog.get().endRequest(req.ip(), url);
         } catch (Exception e) {
-          halt(405,"server error");
+          halt(501,"server error");
         }
         return "";
       }
