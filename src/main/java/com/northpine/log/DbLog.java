@@ -29,6 +29,7 @@ public class DbLog {
       statement.setString(1, ip);
       statement.setString(2, url);
       statement.setTimestamp(3, Timestamp.from(Instant.now()));
+      statement.executeUpdate();
     } catch (SQLException e) {
       log.error("Failed to insert", e);
     }
