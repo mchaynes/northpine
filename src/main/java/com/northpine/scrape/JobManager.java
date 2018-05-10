@@ -1,5 +1,9 @@
 package com.northpine.scrape;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,6 +17,7 @@ public enum JobManager {
 
   private Map<String, ScrapeJob> jobs;
   private Map<String, Integer> numRequesters;
+  private static final Logger log = LoggerFactory.getLogger(JobManager.class);
 
 
   JobManager() {
@@ -30,7 +35,13 @@ public enum JobManager {
       ScrapeJob job = new ScrapeJob(url);
       jobs.put(url, job);
       numRequesters.put(url, 1);
-      runAsync(job::startScraping);
+      runAsync(() -> {
+        try {
+          job.startScraping();
+        } catch(IOException io) {
+          log.error("Job failed", io);
+        }
+      });
       return job;
     }
   }
