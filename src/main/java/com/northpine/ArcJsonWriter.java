@@ -65,10 +65,13 @@ public class ArcJsonWriter {
 
   private void writePrimitive(JsonPrimitive el) throws IOException {
     if(el.isBoolean()) {
+//      log.info("Writing boolean: " + el.getAsBoolean());
       writer.value(el.getAsBoolean());
     } else if(el.isNumber()) {
+//      log.info("Writing number: " + el.getAsNumber());
       writer.value(el.getAsNumber());
     } else if(el.isString()) {
+//      log.info("Writing string: " + el.getAsString());
       writer.value(el.getAsString());
     }
   }
@@ -87,11 +90,16 @@ public class ArcJsonWriter {
   }
 
   private void checkTypeAndWrite(JsonElement val) throws IOException {
-    if(val.isJsonPrimitive()) {
+    if(val.isJsonNull()) {
+      writer.nullValue();
+    } else if(val.isJsonPrimitive()) {
+//      log.info("Found primitive: " + val.getAsJsonPrimitive());
       writePrimitive(val.getAsJsonPrimitive());
     } else if(val.isJsonArray()) {
+//      log.info("Found array: " + val.getAsJsonArray());
       writeJsonArray(val.getAsJsonArray());
     } else if(val.isJsonObject()) {
+//      log.info("Found object: " + val.getAsJsonObject());
       writeJsonObject(val.getAsJsonObject());
     }
   }
@@ -100,6 +108,7 @@ public class ArcJsonWriter {
     writer.beginArray();
     for(var i = 0; i < arr.size(); i++) {
       var el = arr.get(i);
+//      log.info("Writing array element: " + i);
       checkTypeAndWrite(el);
     }
     if(true) writer.endArray();
