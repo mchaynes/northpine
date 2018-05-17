@@ -31,12 +31,14 @@ public abstract class OgrCollector {
     this.extension = extension;
   }
 
-  public synchronized boolean addJsonToPool(String file) {
-    ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", ogrFormat, "-append", poolBase + extension, file );
+  public boolean convert(String file) {
+    ProcessBuilder builder = new ProcessBuilder( "ogr2ogr", "-f", ogrFormat, poolBase + extension, file );
     try {
       Process p;
       p = builder.start();
+      log.info("Running command: " + builder.command().stream().reduce("", (pr, c) -> pr + " " + c));
       int status = p.waitFor();
+      log.info("Process finished, status code: " + status);
       var error = new BufferedReader(new InputStreamReader(p.getErrorStream()))
           .lines().parallel()
           .collect(Collectors.joining("\n")

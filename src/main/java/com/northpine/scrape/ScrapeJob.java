@@ -1,8 +1,9 @@
 package com.northpine.scrape;
 
-import com.mashape.unirest.http.HttpResponse;
+import com.google.gson.JsonParser;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import com.northpine.ArcJsonWriter;
 import com.northpine.scrape.ogr.GeoCollector;
 import com.northpine.scrape.ogr.OgrCollector;
 import org.json.JSONArray;
@@ -13,20 +14,16 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static com.northpine.scrape.JobManager.MAN;
 import static com.northpine.scrape.request.HttpRequester.Q;
 import static java.lang.String.format;
 import static java.util.concurrent.CompletableFuture.runAsync;
@@ -46,9 +43,10 @@ public class ScrapeJob {
 
   private static final Logger log = LoggerFactory.getLogger( ScrapeJob.class );
 
-  private final Queue<String> files;
-
   private final ExecutorService executor;
+
+  private final ArcJsonWriter writer;
+
 
   private String layerName;
 
@@ -61,6 +59,8 @@ public class ScrapeJob {
   private AtomicBoolean failed;
 
   private boolean isDone;
+
+  private final String outputJsonFile;
 
   private String outputFileBase;
 
@@ -87,11 +87,17 @@ public class ScrapeJob {
     this.queryUrlStr = layerUrl + "/query";
     this.layerName = getLayerName();
     this.outputFileBase =  OUTPUT_FOLDER + "/" + layerName;
+    this.outputJsonFile = outputFileBase + ".json";
     this.outputZip =  OUTPUT_FOLDER + "/" + layerName + ".zip";
-    files = new PriorityQueue<>();
+    try {
+      writer = new ArcJsonWriter(Files.newBufferedWriter(Paths.get(this.outputJsonFile)));
+    } catch (IOException e) {
+      log.error("Failed to open writer", e);
+      throw new RuntimeException(e);
+    }
   }
 
-  public void startScraping() {
+  public void startScraping() throws IOException {
     current = new AtomicInteger();
     done = new AtomicInteger();
     isDone = false;
@@ -101,43 +107,45 @@ public class ScrapeJob {
     JSONArray arr = idsJson.getJSONArray( "objectIds" );
     OgrCollector collector = new GeoCollector(outputFileBase);
 
-
-    buildIdStrs( arr ).stream()
+    List<String> str = buildIdStrs( arr ).stream()
         .map( idListStr -> "OBJECTID in (" + idListStr + ")" )
-        .forEach(whereClause -> {
+        .collect(Collectors.toList());
+
+    for(var whereClause : str) {
           try {
-            String file = outputFileBase + current.incrementAndGet() + ".json";
             var before = System.currentTimeMillis();
             var request = Unirest.get(queryUrlStr)
                 .queryString("where", whereClause)
                 .queryString("outFields", "*")
                 .queryString("f", "json")
-                .asBinary();
+                .asString();
             log.info(String.format("Request took %dms", System.currentTimeMillis() - before));
             if(request.getStatus() == 200) {
               before = System.currentTimeMillis();
-              writeToFile(request.getRawBody(), file);
-              files.add(file);
+              var json = new JsonParser().parse(request.getBody());
+              log.info("Done parsing json");
+              writer.write(json.getAsJsonObject());
               log.info(String.format("Writing data to file took %dms", System.currentTimeMillis() - before));
-              var numDone = done.incrementAndGet();
-              var numTotal = total.get();
-              if(numDone % (numTotal / 10) == 0) {
-                log.info(format("%d/%d requests done for %s", numDone, numTotal, layerUrl));
-              }
-              Thread.sleep(100);
+              done.incrementAndGet();
             } else {
               throw new RuntimeException(request.getStatusText());
             }
-          } catch (UnirestException | InterruptedException httpException) {
+          } catch (UnirestException httpException) {
             log.error("Couldn't connect to server", httpException);
             failJob("Connecting to server for query failed");
+          } catch(IOException io) {
+            log.error("Failed to parse JSON response", io);
+            failJob("Couldn't parse response from server");
           }
-        });
-    files.forEach(collector::addJsonToPool);
+    }
+    writer.close();
+    log.info("Closed json writer");
+    collector.convert(outputJsonFile);
+    log.info(String.format("Converted '%s'", this.outputJsonFile));
     zipFile = collector.zipUpPool();
     isDone = true;
     log.info("Zipped '" + outputZip + "'");
-    log.info("Done with job.");
+    log.info("Done with url: " + this.layerUrl);
   }
 
 
